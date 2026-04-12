@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>図描 — Zuhyo</title>
+  <meta name="description" content="図描 (Zuhyo) — 幾何学描画言語エディター。点・線・曲線・fillをリアルタイムに描画します。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Noto+Serif+JP:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/zuhyo.css">
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header id="app-header">
+  <div class="h-brand">
+    <div class="h-mark">図</div>
+    <div class="h-brand-text">
+      <div class="h-title">図描</div>
+      <div class="h-sub">ZUHYO DIAGRAM EDITOR</div>
+    </div>
+  </div>
+
+  <div class="h-center">
+    <input type="text" id="project-name" class="project-name-input" value="Untitled" spellcheck="false">
+    <span class="dirty-mark" id="dirty-mark" style="display:none">*</span>
+  </div>
+
+  <div class="h-actions">
+    <button class="hbtn" id="btn-new-project" title="新規プロジェクト">新規</button>
+    <button class="hbtn" id="btn-save" title="プロジェクトを保存 (.zy)">保存</button>
+    <button class="hbtn" id="btn-load" title="プロジェクトを開く">開く</button>
+    <div class="export-wrap" id="export-wrap">
+      <button class="hbtn hbtn-accent" id="btn-export">書き出し ▾</button>
+      <div class="export-menu" id="export-menu">
+        <button id="exp-png-t">PNG（透明背景）</button>
+        <button id="exp-png-w">PNG（白背景）</button>
+        <button id="exp-svg">SVG</button>
+        <div class="exp-divider"></div>
+        <button id="exp-zy">図描プロジェクト (.zy)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="h-status">
+    <span class="sdot" id="sdot"></span>
+    <span id="stxt">READY</span>
+  </div>
+</header>
+
+<!-- ── App body ── -->
+<div class="app-body">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel" id="left-panel">
+
+    <!-- Structure list -->
+    <div class="struct-panel" id="struct-panel">
+      <div class="panel-hd">
+        <span class="panel-title">構造</span>
+        <button class="btn btn-sm" id="btn-add-struct">＋ 新規</button>
+      </div>
+      <div class="struct-list" id="struct-list">
+        <div class="empty-msg">構造がありません</div>
+      </div>
+    </div>
+
+    <!-- Vertical resize handle -->
+    <div class="v-divider" id="v-divider"></div>
+
+    <!-- Code editor -->
+    <div class="editor-section">
+      <div class="panel-hd">
+        <span class="panel-title" id="editor-panel-title">エディター</span>
+      </div>
+      <div class="editor-body">
+        <div class="line-nums" id="line-nums"></div>
+        <div class="code-wrap">
+          <pre class="hl-layer" id="hl-layer" aria-hidden="true"></pre>
+          <textarea class="code-input" id="code-ed"
+            spellcheck="false" autocomplete="off" autocorrect="off"
+            placeholder="// 構造を選択するかコードを入力してください"></textarea>
+        </div>
+      </div>
+      <div class="error-bar">
+        <span class="err-icon" id="err-icon">●</span>
+        <span id="err-txt">エラーなし</span>
+      </div>
+    </div>
+
+  </div><!-- /left-panel -->
+
+  <!-- Horizontal resize handle -->
+  <div class="h-divider" id="h-divider"></div>
+
+  <!-- CANVAS AREA -->
+  <div class="canvas-area" id="canvas-area">
+    <div class="canvas-toolbar">
+      <button class="btn btn-sm btn-tool active" id="btn-tool-camera" title="カメラモード（パン＆ズーム）">☉ カメラ</button>
+      <button class="btn btn-sm btn-tool" id="btn-tool-grab" title="グラブモード（選択＆移動）">✋ グラブ</button>
+      <span class="tb-pipe">│</span>
+      <button class="btn btn-sm" id="btn-reset-view">⟳ リセット</button>
+      <label class="toggle">
+        <input type="checkbox" id="grid-snap"> グリッド
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="show-labels" checked> ラベル
+      </label>
+      <span class="tb-sep"></span>
+      <span class="coord-display" id="mouse-coord">x: 0.00  y: 0.00</span>
+      <span class="zoom-display" id="zoom-val">100%</span>
+    </div>
+    <canvas id="cv"></canvas>
+  </div>
+
+  <!-- INSPECTOR (slides in from right) -->
+  <div class="inspector" id="inspector">
+    <div class="inspector-inner">
+      <div class="insp-hd">
+        <span class="insp-title" id="insp-title">インスペクター</span>
+        <button class="btn-icon" id="insp-close" title="閉じる">✕</button>
+      </div>
+      <div class="insp-body" id="insp-body"></div>
+    </div>
+  </div>
+
+</div><!-- /app-body -->
+
+<!-- Hidden file input -->
+<input type="file" id="file-input" accept=".zy,application/json" style="display:none">
+
+<script src="js/parser.js"></script>
+<script src="js/highlighter.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
