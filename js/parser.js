@@ -125,7 +125,7 @@ function parseDotDash(code, argVals) {
 
     // ── Point definition: [+]angle  pointId  [+|-]dist  =  newId ──
     // Relative prefix (+): add to last angle/dist value
-    const pdM = ln.match(/^([+\-]?\d+(?:\.\d+)?)([a-zA-Z_][a-zA-Z_]*)([+\-]?\d+(?:\.\d+)?)\s*=\s*([a-zA-Z_][a-zA-Z_]*)$/);
+    const pdM = ln.match(/^([+\-]?\d+(?:\.\d+)?)([a-zA-Z_][a-zA-Z_0-9]*?)([+\-]?\d+(?:\.\d+)?)\s*=\s*([a-zA-Z_][a-zA-Z_]*)$/);
     if (pdM) {
       const angS = pdM[1], fromId = pdM[2], dstS = pdM[3], toId = pdM[4];
 

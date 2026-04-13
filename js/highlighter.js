@@ -68,7 +68,7 @@ function _hlCode(raw) {
 
   // ── Point definition: [+]angle  pointId  [+]dist  =  newId ──
   // Use same regex as parser.js for consistency
-  var pdRe = /^([+\-]?\d+(?:\.\d+)?)([a-zA-Z_][a-zA-Z_]*)([+\-]?\d+(?:\.\d+)?)\s*=\s*([a-zA-Z_][a-zA-Z_]*)$/;
+  var pdRe = /^([+\-]?\d+(?:\.\d+)?)([a-zA-Z_][a-zA-Z_0-9]*?)([+\-]?\d+(?:\.\d+)?)\s*=\s*([a-zA-Z_][a-zA-Z_]*)$/;
   var trimmedE = e.trim();
   if (pdRe.test(trimmedE)) {
     var leadSpace = e.match(/^(\s*)/)[1];
