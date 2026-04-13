@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd /workspaces/Zuhyo && node - <<'NODE'\nconst fs = require\\('fs'\\);\nconst vm = require\\('vm'\\);\nconst parserCode = fs\\.readFileSync\\('js/parser\\.js','utf8'\\);\nconst highlighterCode = fs\\.readFileSync\\('js/highlighter\\.js','utf8'\\);\nconst sandbox = \\{\\};\nvm\\.createContext\\(sandbox\\);\nvm\\.runInContext\\(parserCode, sandbox\\);\nvm\\.runInContext\\(highlighterCode, sandbox\\);\nconst samples = \\[\n  '90o1 = a',\n  '90o1a0',\n  '180o1 = b0',\n  'a <-> b0',\n  'a <-> b0 <-> c1'\n\\];\nfor \\(const s of samples\\) \\{\n  const res = sandbox\\.parseDotDash\\(s, \\{ \\}\\);\n  console\\.log\\('===', JSON\\.stringify\\(s\\), '==='\\);\n  console\\.log\\('pts', Object\\.keys\\(res\\.pts\\)\\);\n  console\\.log\\('cmds', JSON\\.stringify\\(res\\.cmds, null, 2\\)\\);\n  console\\.log\\('errs', res\\.errs\\);\n  console\\.log\\('highlight', sandbox\\.highlight\\(s\\)\\);\n\\}\nNODE$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

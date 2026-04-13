@@ -123,9 +123,9 @@ function parseDotDash(code, argVals) {
       continue;
     }
 
-    // ── Point definition: [+]angle  pointId  [+|-]dist  =  newId ──
+    // ── Point definition: [+]angle  pointId  [+|-]dist  [=]  newId ──
     // Relative prefix (+): add to last angle/dist value
-    const pdM = ln.match(/^([+\-]?\d+(?:\.\d+)?)([a-zA-Z_][a-zA-Z_0-9]*?)([+\-]?\d+(?:\.\d+)?)\s*=\s*([a-zA-Z_][a-zA-Z_]*)$/);
+    const pdM = ln.match(/^([+\-]?\d+(?:\.\d+)?)([a-zA-Z_][a-zA-Z_0-9]*?)([+\-]?\d+(?:\.\d+)?)(?:\s*=\s*|)([a-zA-Z_][a-zA-Z_0-9]*)$/);
     if (pdM) {
       const angS = pdM[1], fromId = pdM[2], dstS = pdM[3], toId = pdM[4];
 
@@ -222,7 +222,7 @@ function _evalMath(expr) {
 
 function _parseLineStmt(line, pts, cmds, errs, li) {
   const toks = [];
-  const re   = /([a-zA-Z_][a-zA-Z_]*)|(<[^>]*>)((?:\s*\([^)]*\))*)/g;
+  const re   = /([a-zA-Z_][a-zA-Z_0-9]*)|(<[^>]*>)((?:\s*\([^)]*\))*)/g;
   let m;
   while ((m = re.exec(line)) !== null) {
     if (m[1]) {

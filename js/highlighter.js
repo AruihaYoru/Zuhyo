@@ -68,18 +68,17 @@ function _hlCode(raw) {
 
   // ── Point definition: [+]angle  pointId  [+]dist  =  newId ──
   // Use same regex as parser.js for consistency
-  var pdRe = /^([+\-]?\d+(?:\.\d+)?)([a-zA-Z_][a-zA-Z_0-9]*?)([+\-]?\d+(?:\.\d+)?)\s*=\s*([a-zA-Z_][a-zA-Z_]*)$/;
-  var trimmedE = e.trim();
-  if (pdRe.test(trimmedE)) {
-    var leadSpace = e.match(/^(\s*)/)[1];
-    var trailSpace = e.match(/(\s*)$/)[1];
-    return leadSpace + trimmedE.replace(pdRe, function(_, ang, pt, dst, eq, npt) {
-      return '<span class="hl-num">'  + ang  + '</span>'
+  var pdRe = /^(\s*)([+\-]?\d+(?:\.\d+)?)([a-zA-Z_][a-zA-Z_0-9]*?)([+\-]?\d+(?:\.\d+)?)(\s*=\s*)?([a-zA-Z_][a-zA-Z_0-9]*)(\s*)$/;
+  if (pdRe.test(e)) {
+    return e.replace(pdRe, function(_, lead, ang, pt, dst, eq, npt, trail) {
+      return lead
+        + '<span class="hl-num">'  + ang  + '</span>'
         + '<span class="hl-pt">'   + pt   + '</span>'
         + '<span class="hl-num">'  + dst  + '</span>'
-        + '<span class="hl-op">'   + eq   + '</span>'
-        + '<span class="hl-pt">'   + npt  + '</span>';
-    }) + trailSpace;
+        + '<span class="hl-op">'   + (eq || '') + '</span>'
+        + '<span class="hl-pt">'   + npt  + '</span>'
+        + trail;
+    });
   }
 
   // ── Line statement (contains &lt; ... &gt;) ──
@@ -88,21 +87,21 @@ function _hlCode(raw) {
     e = e.replace(
       /(&lt;[^&]*?&gt;)((?:\s*\([^)]*\))*)/g,
       function(_, conn, ctrls) {
-        var token = '§ZHHL' + placeholders.length + '§';
+        var token = '\u0001' + placeholders.length + '\u0002';
         placeholders.push('<span class="hl-conn">' + conn + '</span>'
           + (ctrls ? '<span class="hl-ctrl">' + ctrls + '</span>' : ''));
         return token;
       }
     );
     // Highlight point names (words not followed by HTML entity)
-    e = e.replace(/\b([a-zA-Z_][a-zA-Z_]*)\b(?!;)/g, function(m, w) {
+    e = e.replace(/\b([a-zA-Z_][a-zA-Z_0-9]*)\b(?!;)/g, function(m, w) {
       if (['fill', 'ID', 'math'].indexOf(w) >= 0) {
         return '<span class="hl-kw">' + w + '</span>';
       }
       return '<span class="hl-pt">' + w + '</span>';
     });
     placeholders.forEach(function(html, idx) {
-      e = e.replace('§ZHHL' + idx + '§', html);
+      e = e.replace('\u0001' + idx + '\u0002', html);
     });
     return e;
   }
