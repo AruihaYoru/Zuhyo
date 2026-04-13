@@ -68,20 +68,36 @@ function ZuhyoRenderer(canvas) {
 }
 
 /* ── Fill patterns (CanvasPattern, cached) ── */
-ZuhyoRenderer.prototype._getPat = function(type, dens) {
-  dens = Math.max(0.05, dens != null ? dens : 1);
-  var key = type + '_' + dens.toFixed(2);
+ZuhyoRenderer.prototype._getPat = function(type, opts) {
+  opts = opts || {};
+  var angle   = opts.angle != null ? opts.angle % 360 : 45;
+  if (angle < 0) angle += 360;
+  var spacing = opts.spacing != null ? Math.max(0.1, opts.spacing) : 1;
+  var dens    = opts.density != null ? Math.max(0.05, opts.density) : 1;
+  var key = type + '_' + angle.toFixed(1) + '_' + spacing.toFixed(2) + '_' + dens.toFixed(2);
   if (this._pats[key]) return this._pats[key];
-  var sz = Math.max(4, Math.round(16 / dens));
+
+  var sz = Math.max(8, Math.round(16 * spacing / dens));
   var c = document.createElement('canvas'); c.width = sz; c.height = sz;
-  var x = c.getContext('2d');
+  var ctx = c.getContext('2d');
+
   if (type === 'dot') {
-    x.fillStyle = 'rgba(26,8,0,.5)';
-    x.beginPath(); x.arc(sz / 2, sz / 2, Math.max(0.6, sz * 0.07), 0, Math.PI * 2); x.fill();
+    ctx.fillStyle = 'rgba(26,8,0,.5)';
+    ctx.beginPath(); ctx.arc(sz / 2, sz / 2, Math.max(0.6, sz * 0.07), 0, Math.PI * 2); ctx.fill();
   } else {
-    x.strokeStyle = 'rgba(26,8,0,.28)'; x.lineWidth = 0.8;
-    x.beginPath(); x.moveTo(-1, sz + 1); x.lineTo(sz + 1, -1); x.stroke();
-    if (type === 'cross') { x.beginPath(); x.moveTo(-1, -1); x.lineTo(sz + 1, sz + 1); x.stroke(); }
+    ctx.strokeStyle = 'rgba(26,8,0,.28)'; ctx.lineWidth = 0.8;
+    ctx.translate(sz / 2, sz / 2);
+    ctx.rotate(angle * Math.PI / 180);
+    var pitch = Math.max(4, Math.round(10 * spacing / dens));
+    for (var y = -sz; y <= sz; y += pitch) {
+      ctx.beginPath(); ctx.moveTo(-sz, y); ctx.lineTo(sz, y); ctx.stroke();
+    }
+    if (type === 'cross' || type === 'grid') {
+      ctx.rotate(Math.PI / 2);
+      for (var y2 = -sz; y2 <= sz; y2 += pitch) {
+        ctx.beginPath(); ctx.moveTo(-sz, y2); ctx.lineTo(sz, y2); ctx.stroke();
+      }
+    }
   }
   return (this._pats[key] = this.ctx.createPattern(c, 'repeat'));
 };
@@ -405,8 +421,25 @@ ZuhyoRenderer.prototype._renderFill = function(group, pts) {
   var ctx = this.ctx, path = _ord(group.lines);
   if (!path.length) return;
   var fa = group.fill.args || [];
-  var dens = fa.length >= 3 ? Math.max(0.05, fa[2]) : 1;
-  var pat = this._getPat(group.fill.style, dens);
+  var style = group.fill.style;
+  var patOpts = { density: 1, spacing: 1, angle: 45 };
+  var offsetX = 0, offsetY = 0;
+
+  if (style === 'line' || style === 'cross' || style === 'hatch' || style === 'grid') {
+    patOpts.angle   = fa.length >= 1 ? fa[0] : 45;
+    patOpts.spacing = fa.length >= 2 ? fa[1] : 1;
+    patOpts.density = fa.length >= 3 ? fa[2] : 1;
+  } else if (style === 'dot') {
+    offsetX = fa.length >= 1 ? fa[0] : 0;
+    offsetY = fa.length >= 2 ? fa[1] : 0;
+    patOpts.density = fa.length >= 3 ? fa[2] : 1;
+  } else {
+    offsetX = fa.length >= 1 ? fa[0] : 0;
+    offsetY = fa.length >= 2 ? fa[1] : 0;
+    patOpts.density = fa.length >= 3 ? fa[2] : 1;
+  }
+
+  var pat = this._getPat(style, patOpts);
   if (!pat) return;
 
   ctx.save();
@@ -426,8 +459,7 @@ ZuhyoRenderer.prototype._renderFill = function(group, pts) {
     } else { ctx.lineTo(bc.x, bc.y); }
   }
   ctx.closePath(); ctx.clip();
-  // Apply fill offset
-  if (fa[0] || fa[1]) ctx.translate((fa[0] || 0) * this.scale, -(fa[1] || 0) * this.scale);
+  if (offsetX || offsetY) ctx.translate(offsetX * this.scale, -offsetY * this.scale);
   ctx.fillStyle = pat;
   ctx.fillRect(-4000, -4000, 8000, 8000);
   ctx.restore();
@@ -463,7 +495,7 @@ ZuhyoRenderer.prototype.exportSVG = function() {
   o.push('<line x1="0" y1="' + rawCy.toFixed(1) + '" x2="' + W + '" y2="' + rawCy.toFixed(1) + '" stroke="rgba(100,60,10,.22)"/>');
   o.push('<line x1="' + rawCx.toFixed(1) + '" y1="0" x2="' + rawCx.toFixed(1) + '" y2="' + H + '" stroke="rgba(100,60,10,.22)"/>');
 
-  var pm = { dot: 'zpd', line: 'zpl', cross: 'zpc' };
+  var pm = { dot: 'zpd', line: 'zpl', cross: 'zpc', hatch: 'zpl', grid: 'zpc' };
   var ids = Object.keys(this._dispMap);
   for (var ii = 0; ii < ids.length; ii++) {
     var inst = this._dispMap[ids[ii]], groups = _grp(inst.cmds);

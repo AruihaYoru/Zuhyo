@@ -161,7 +161,16 @@ function _evalMath(expr) {
     .replace(/\btan\b/g, 'Math.tan')
     .replace(/\bsqrt\b/g, 'Math.sqrt')
     .replace(/\babs\b/g, 'Math.abs')
-    .replace(/\bpi\b/gi, 'Math.PI');
+    .replace(/\bpow\b/g, 'Math.pow')
+    .replace(/\bmax\b/g, 'Math.max')
+    .replace(/\bmin\b/g, 'Math.min')
+    .replace(/\bfloor\b/g, 'Math.floor')
+    .replace(/\bceil\b/g, 'Math.ceil')
+    .replace(/\bround\b/g, 'Math.round')
+    .replace(/\bexp\b/g, 'Math.exp')
+    .replace(/\blog\b/g, 'Math.log')
+    .replace(/\bpi\b/gi, 'Math.PI')
+    .replace(/\be\b/g, 'Math.E');
   // eslint-disable-next-line no-new-func
   return Function('"use strict"; return (' + safe + ')')();
 }

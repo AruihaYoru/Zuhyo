@@ -82,12 +82,14 @@ function _hlCode(raw) {
 
   // ── Line statement (contains &lt; ... &gt;) ──
   if (e.includes('&lt;') && e.includes('&gt;')) {
-    // Highlight connectors and their curve controls
+    var placeholders = [];
     e = e.replace(
       /(&lt;[^&]*?&gt;)((?:\s*\([^)]*\))*)/g,
       function(_, conn, ctrls) {
-        return '<span class="hl-conn">' + conn + '</span>'
-          + (ctrls ? '<span class="hl-ctrl">' + ctrls + '</span>' : '');
+        var token = '§ZHHL' + placeholders.length + '§';
+        placeholders.push('<span class="hl-conn">' + conn + '</span>'
+          + (ctrls ? '<span class="hl-ctrl">' + ctrls + '</span>' : ''));
+        return token;
       }
     );
     // Highlight point names (words not followed by HTML entity)
@@ -96,6 +98,9 @@ function _hlCode(raw) {
         return '<span class="hl-kw">' + w + '</span>';
       }
       return '<span class="hl-pt">' + w + '</span>';
+    });
+    placeholders.forEach(function(html, idx) {
+      e = e.replace('§ZHHL' + idx + '§', html);
     });
     return e;
   }
