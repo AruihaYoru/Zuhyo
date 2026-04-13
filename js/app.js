@@ -421,13 +421,6 @@ function syncEditorToState() {
   updateHints();
   markDirty();
 }
-    document.getElementById('sdot').className = 'sdot error';
-    document.getElementById('stxt').textContent = 'ERROR';
-  }
-
-  renderer.updateProject(proj());
-  markDirty();
-}
 
 /* ================================================================
    RENDER FUNCTIONS
