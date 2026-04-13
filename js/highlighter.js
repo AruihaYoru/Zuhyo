@@ -67,17 +67,19 @@ function _hlCode(raw) {
   var e = _esc(raw);
 
   // ── Point definition: [+]angle  pointId  [+]dist  =  newId ──
-  var pdRe = /^(\s*)([+\-]?\d+(?:\.\d+)?)([a-zA-Z_][a-zA-Z_]*)([+\-]?\d+(?:\.\d+)?)(\s*=\s*)([a-zA-Z_][a-zA-Z_]*)(\s*)$/;
-  if (pdRe.test(e)) {
-    return e.replace(pdRe, function(_, lead, ang, pt, dst, eq, npt, trail) {
-      return lead
-        + '<span class="hl-num">'  + ang  + '</span>'
+  // Use same regex as parser.js for consistency
+  var pdRe = /^([+\-]?\d+(?:\.\d+)?)([a-zA-Z_][a-zA-Z_]*)([+\-]?\d+(?:\.\d+)?)\s*=\s*([a-zA-Z_][a-zA-Z_]*)$/;
+  var trimmedE = e.trim();
+  if (pdRe.test(trimmedE)) {
+    var leadSpace = e.match(/^(\s*)/)[1];
+    var trailSpace = e.match(/(\s*)$/)[1];
+    return leadSpace + trimmedE.replace(pdRe, function(_, ang, pt, dst, eq, npt) {
+      return '<span class="hl-num">'  + ang  + '</span>'
         + '<span class="hl-pt">'   + pt   + '</span>'
         + '<span class="hl-num">'  + dst  + '</span>'
         + '<span class="hl-op">'   + eq   + '</span>'
-        + '<span class="hl-pt">'   + npt  + '</span>'
-        + trail;
-    });
+        + '<span class="hl-pt">'   + npt  + '</span>';
+    }) + trailSpace;
   }
 
   // ── Line statement (contains &lt; ... &gt;) ──

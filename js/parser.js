@@ -155,7 +155,11 @@ function parseDotDash(code, argVals) {
 // ── Helpers ──
 
 function _evalMath(expr) {
-  var safe = expr
+  // Remove spaces for cleaner processing
+  var safe = expr.replace(/\s/g, '');
+  
+  // Replace function names with Math equivalents
+  safe = safe
     .replace(/\bsin\b/g, 'Math.sin')
     .replace(/\bcos\b/g, 'Math.cos')
     .replace(/\btan\b/g, 'Math.tan')
@@ -171,6 +175,12 @@ function _evalMath(expr) {
     .replace(/\blog\b/g, 'Math.log')
     .replace(/\bpi\b/gi, 'Math.PI')
     .replace(/\be\b/g, 'Math.E');
+  
+  // Validate: only allow numbers, operators, functions, [varname], and parentheses
+  if (!/^[0-9+\-*/()\[\]a-zA-Z_.,Math.PIE]*$/.test(safe)) {
+    throw new Error('Invalid characters in expression: ' + safe);
+  }
+  
   // eslint-disable-next-line no-new-func
   return Function('"use strict"; return (' + safe + ')')();
 }
