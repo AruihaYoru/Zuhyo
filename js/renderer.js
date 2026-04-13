@@ -41,6 +41,7 @@ function ZuhyoRenderer(canvas) {
   this.scale = 80;
   this.offX = 0; this.offY = 0;
   this.gridSnap = false; this.gridSize = 1;
+  this.showGrid = true;
   this.showLabels = true;
   this.selInstId = null;
   this.toolMode = 'camera'; // 'camera' | 'grab'
@@ -251,6 +252,7 @@ ZuhyoRenderer.prototype._drawGrid = function(W, H) {
   var cx = Math.floor(rawCx) + 0.5, cy = Math.floor(rawCy) + 0.5;
 
   // Minor grid (skip when too zoomed out)
+  if (!this.showGrid) return;
   if (sc >= 20) {
     ctx.strokeStyle = 'rgba(100,60,10,.07)'; ctx.lineWidth = 0.5; ctx.setLineDash([]);
     var fx = ((rawCx % sc) + sc) % sc, fy = ((rawCy % sc) + sc) % sc;

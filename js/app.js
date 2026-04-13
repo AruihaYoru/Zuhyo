@@ -165,7 +165,7 @@ var hlEl    = document.getElementById('hl-layer');
 var lnEl    = document.getElementById('line-nums');
 var errIcon = document.getElementById('err-icon');
 var errTxt  = document.getElementById('err-txt');
-var HINTS_VISIBLE = false;
+var HINTS_VISIBLE = true;
 
 var _parseTimer = null;
 
@@ -803,7 +803,8 @@ document.getElementById('btn-reset-view').addEventListener('click', function() {
 });
 
 document.getElementById('grid-snap').addEventListener('change', function(e) {
-  renderer.gridSnap = e.target.checked;
+  // Toggle grid visibility (UI labeled "グリッド")
+  renderer.showGrid = e.target.checked;
   renderer.draw();
 });
 
