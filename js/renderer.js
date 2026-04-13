@@ -62,57 +62,10 @@ function ZuhyoRenderer(canvas) {
   this._dragStart = null; this._offStart = null;
   this._potDrag = null; this._actDrag = false;
 
-  // Fill pattern cache
-  this._pats = {};
+  // Fill pattern cache (removed)
+  // this._pats = {};
   this._bindEvents();
 }
-
-/* ── Fill patterns (CanvasPattern, cached) ── */
-ZuhyoRenderer.prototype._getPat = function(type, opts) {
-  opts = opts || {};
-  var angle   = opts.angle != null ? opts.angle % 360 : 45;
-  if (angle < 0) angle += 360;
-  var spacing = opts.spacing != null ? Math.max(0.1, opts.spacing) : 1;
-  var dens    = opts.density != null ? Math.max(0.05, opts.density) : 1;
-  var key = type + '_' + angle.toFixed(1) + '_' + spacing.toFixed(2) + '_' + dens.toFixed(2);
-  if (this._pats[key]) return this._pats[key];
-
-  var sz = Math.max(12, Math.round(24 * spacing / dens));
-  var c = document.createElement('canvas'); c.width = sz; c.height = sz;
-  var ctx = c.getContext('2d');
-
-  if (type === 'dot') {
-    ctx.fillStyle = 'rgba(26,8,0,.35)';
-    ctx.beginPath(); ctx.arc(sz / 2, sz / 2, Math.max(0.8, sz * 0.08), 0, Math.PI * 2); ctx.fill();
-  } else {
-    ctx.strokeStyle = 'rgba(26,8,0,.28)';
-    ctx.lineWidth = 1.2;
-    ctx.translate(sz / 2, sz / 2);
-    var pitch = Math.max(4, Math.round(10 * spacing / dens));
-
-    if (type === 'cross' || type === 'grid') {
-      ctx.save();
-      ctx.rotate(angle * Math.PI / 180);
-      for (var y = -sz; y <= sz; y += pitch) {
-        ctx.beginPath(); ctx.moveTo(-sz, y); ctx.lineTo(sz, y); ctx.stroke();
-      }
-      ctx.restore();
-
-      ctx.save();
-      ctx.rotate((angle + 90) * Math.PI / 180);
-      for (var y2 = -sz; y2 <= sz; y2 += pitch) {
-        ctx.beginPath(); ctx.moveTo(-sz, y2); ctx.lineTo(sz, y2); ctx.stroke();
-      }
-      ctx.restore();
-    } else {
-      ctx.rotate(angle * Math.PI / 180);
-      for (var y = -sz; y <= sz; y += pitch) {
-        ctx.beginPath(); ctx.moveTo(-sz, y); ctx.lineTo(sz, y); ctx.stroke();
-      }
-    }
-  }
-  return (this._pats[key] = this.ctx.createPattern(c, 'repeat'));
-};
 
 /* ── Events ── */
 ZuhyoRenderer.prototype._bindEvents = function() {
@@ -200,7 +153,6 @@ ZuhyoRenderer.prototype._bindEvents = function() {
   cv.addEventListener('wheel', function(e) {
     e.preventDefault();
     self.scale = Math.max(10, Math.min(600, self.scale * (e.deltaY > 0 ? 0.88 : 1.14)));
-    self._pats = {};
     if (self.onScaleChange) self.onScaleChange(self.scale);
     self.draw();
   }, { passive: false });
@@ -428,35 +380,32 @@ ZuhyoRenderer.prototype._drawPt = function(id, pt, sel) {
   }
 };
 
-/* ── Fill (CanvasPattern) ── */
+/* ── Fill (direct drawing) ── */
 ZuhyoRenderer.prototype._renderFill = function(group, pts) {
   var ctx = this.ctx, path = _ord(group.lines);
   if (!path.length) return;
   var fa = group.fill.args || [];
   var style = group.fill.style;
-  var patOpts = { density: 1, spacing: 1, angle: 45 };
-  var offsetX = 0, offsetY = 0;
+  var angle = 45, spacing = 1, dens = 1, offsetX = 0, offsetY = 0;
 
   if (style === 'line' || style === 'cross' || style === 'hatch' || style === 'grid') {
-    patOpts.angle   = fa.length >= 1 ? fa[0] : 45;
-    patOpts.spacing = fa.length >= 2 ? fa[1] : 1;
-    patOpts.density = fa.length >= 3 ? fa[2] : 1;
+    angle   = fa.length >= 1 ? fa[0] : 45;
+    spacing = fa.length >= 2 ? fa[1] : 1;
+    dens    = fa.length >= 3 ? fa[2] : 1;
   } else if (style === 'dot') {
     offsetX = fa.length >= 1 ? fa[0] : 0;
     offsetY = fa.length >= 2 ? fa[1] : 0;
-    patOpts.density = fa.length >= 3 ? fa[2] : 1;
+    dens    = fa.length >= 3 ? fa[2] : 1;
   } else {
     offsetX = fa.length >= 1 ? fa[0] : 0;
     offsetY = fa.length >= 2 ? fa[1] : 0;
-    patOpts.density = fa.length >= 3 ? fa[2] : 1;
+    dens    = fa.length >= 3 ? fa[2] : 1;
   }
 
-  var pat = this._getPat(style, patOpts);
-  if (!pat) return;
-
+  // Create path and compute bbox
   ctx.save();
   ctx.beginPath();
-  var first = true;
+  var first = true, minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (var i = 0; i < path.length; i++) {
     var seg = path[i], A = pts[seg.from], B = pts[seg.to];
     if (!A || !B) continue;
@@ -469,11 +418,61 @@ ZuhyoRenderer.prototype._renderFill = function(group, pts) {
       var c1 = this._cp(ac, bc, seg.ctrl[0]), c2 = this._cp(ac, bc, seg.ctrl[1]);
       ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, bc.x, bc.y);
     } else { ctx.lineTo(bc.x, bc.y); }
+    minX = Math.min(minX, ac.x, bc.x); maxX = Math.max(maxX, ac.x, bc.x);
+    minY = Math.min(minY, ac.y, bc.y); maxY = Math.max(maxY, ac.y, bc.y);
   }
-  ctx.closePath(); ctx.clip();
-  if (offsetX || offsetY) ctx.translate(offsetX * this.scale, -offsetY * this.scale);
-  ctx.fillStyle = pat;
-  ctx.fillRect(-4000, -4000, 8000, 8000);
+  ctx.closePath();
+  ctx.clip();
+
+  // Draw fill directly
+  ctx.strokeStyle = 'rgba(26,8,0,.28)';
+  ctx.lineWidth = 1.2;
+  ctx.fillStyle = 'rgba(26,8,0,.35)';
+  var pitch = Math.max(4, Math.round(10 * spacing * this.scale / dens));
+
+  if (style === 'dot') {
+    var dotPitch = Math.max(6, Math.round(12 * spacing * this.scale / dens));
+    for (var dx = minX - pitch; dx <= maxX + pitch; dx += dotPitch) {
+      for (var dy = minY - pitch; dy <= maxY + pitch; dy += dotPitch) {
+        ctx.beginPath();
+        ctx.arc(dx + offsetX * this.scale, dy + offsetY * this.scale, Math.max(0.8, dotPitch * 0.08), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else {
+    var directions = [];
+    if (style === 'line' || style === 'hatch') directions = [angle];
+    else if (style === 'cross' || style === 'grid') directions = [angle, angle + 90];
+
+    for (var di = 0; di < directions.length; di++) {
+      var ang = directions[di];
+      var rad = ang * Math.PI / 180;
+      var cos = Math.cos(rad), sin = Math.sin(rad);
+      var perpCos = -sin, perpSin = cos; // perpendicular for line bounds
+
+      // Compute line bounds in bbox
+      var lines = [];
+      var step = pitch;
+      var bboxW = maxX - minX, bboxH = maxY - minY;
+      var numLines = Math.ceil((bboxW + bboxH) / step) + 2;
+      for (var li = -numLines; li <= numLines; li++) {
+        var offset = li * step;
+        var startX = minX + offset * cos - 1000 * perpCos;
+        var startY = minY + offset * sin - 1000 * perpSin;
+        var endX = minX + offset * cos + 1000 * perpCos;
+        var endY = minY + offset * sin + 1000 * perpSin;
+        lines.push({ sx: startX, sy: startY, ex: endX, ey: endY });
+      }
+
+      for (var li = 0; li < lines.length; li++) {
+        ctx.beginPath();
+        ctx.moveTo(lines[li].sx, lines[li].sy);
+        ctx.lineTo(lines[li].ex, lines[li].ey);
+        ctx.stroke();
+      }
+    }
+  }
+
   ctx.restore();
 };
 
