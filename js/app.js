@@ -169,7 +169,7 @@ var errTxt  = document.getElementById('err-txt');
 var _parseTimer = null;
 
 edEl.addEventListener('input', function() {
-  updateHL(); updateLN();
+  updateHL(); updateLN(); updateHints();
   clearTimeout(_parseTimer);
   _parseTimer = setTimeout(syncEditorToState, 80);
 });
@@ -187,10 +187,6 @@ edEl.addEventListener('keydown', function(e) {
   edEl.value = edEl.value.slice(0, s) + '    ' + edEl.value.slice(end);
   edEl.selectionStart = edEl.selectionEnd = s + 4;
   updateHL(); updateLN();
-});
-
-edEl.addEventListener('input', function() {
-  updateHints();
 });
 
 function getHintContainer() {
