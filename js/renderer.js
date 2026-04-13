@@ -386,9 +386,13 @@ ZuhyoRenderer.prototype._renderFill = function(group, pts) {
   if (!path.length) return;
   var fa = group.fill.args || [];
   var style = group.fill.style;
-  var angle = 45, spacing = 1, dens = 1, offsetX = 0, offsetY = 0;
+  var angle = 0, spacing = 1, dens = 1, offsetX = 0, offsetY = 0;
 
-  if (style === 'line' || style === 'cross' || style === 'hatch' || style === 'grid') {
+  if (style === 'line' || style === 'grid') {
+    angle   = fa.length >= 1 ? fa[0] : 0;
+    spacing = fa.length >= 2 ? fa[1] : 1;
+    dens    = fa.length >= 3 ? fa[2] : 1;
+  } else if (style === 'cross' || style === 'hatch') {
     angle   = fa.length >= 1 ? fa[0] : 45;
     spacing = fa.length >= 2 ? fa[1] : 1;
     dens    = fa.length >= 3 ? fa[2] : 1;

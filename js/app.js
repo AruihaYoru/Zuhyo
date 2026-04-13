@@ -195,7 +195,13 @@ function getHintContainer() {
     hintsEl = document.createElement('div');
     hintsEl.id = 'code-hints';
     hintsEl.style.cssText = 'padding:8px 12px;font-size:11px;color:#666;background:#fafafa;border-top:1px solid #ddd;font-family:monospace;user-select:none;max-height:60px;overflow-y:auto;line-height:1.4;';
-    edEl.parentNode.appendChild(hintsEl);
+    var editorSection = edEl.parentNode.parentNode.parentNode;
+    var errorBar = editorSection.querySelector('.error-bar');
+    if (errorBar) {
+      editorSection.insertBefore(hintsEl, errorBar);
+    } else {
+      editorSection.appendChild(hintsEl);
+    }
   }
   return hintsEl;
 }
