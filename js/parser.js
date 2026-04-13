@@ -67,10 +67,45 @@ function parseDotDash(code, argVals) {
     if (/^fill\s*:/i.test(ln)) {
       const m = ln.match(/^fill\s*:\s*(\w+)(?:\(([^)]*)\))?/i);
       if (m) {
-        const args = m[2]
-          ? m[2].split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n))
+        const style = m[1].toLowerCase();
+        const rawArgs = m[2]
+          ? m[2].split(',').map(s => s.trim()).filter(Boolean)
           : [];
-        cmds.push({ type: 'fill', style: m[1].toLowerCase(), args });
+        
+        // Validate fill style
+        const validStyles = ['none', 'dot', 'line', 'cross', 'hatch', 'grid'];
+        if (validStyles.indexOf(style) < 0) {
+          errs.push('L' + (li + 1) + ': unknown fill style "' + style + '"');
+          continue;
+        }
+        
+        // Parse and validate arguments
+        const args = [];
+        for (let ai = 0; ai < rawArgs.length; ai++) {
+          const val = parseFloat(rawArgs[ai]);
+          if (isNaN(val)) {
+            errs.push('L' + (li + 1) + ': fill argument ' + (ai + 1) + ' is not a number: "' + rawArgs[ai] + '"');
+            continue;
+          }
+          args.push(val);
+        }
+        
+        // Validate arg count and ranges
+        if (style === 'none') {
+          if (args.length > 0) errs.push('L' + (li + 1) + ': "' + style + '" takes no arguments');
+        } else if (style === 'dot') {
+          if (args.length > 2) errs.push('L' + (li + 1) + ': "' + style + '" takes at most 2 arguments (offset, density)');
+        } else if (['line', 'hatch', 'cross', 'grid'].indexOf(style) >= 0) {
+          if (args.length > 3) errs.push('L' + (li + 1) + ': "' + style + '" takes at most 3 arguments (angle, spacing, density)');
+          if (args.length > 0 && args[1] !== undefined && args[1] < 0.1) {
+            errs.push('L' + (li + 1) + ': spacing must be >= 0.1');
+          }
+          if (args.length > 1 && args[2] !== undefined && args[2] < 0.05) {
+            errs.push('L' + (li + 1) + ': density must be >= 0.05');
+          }
+        }
+        
+        cmds.push({ type: 'fill', style: style, args: args });
       }
       continue;
     }

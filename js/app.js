@@ -189,6 +189,178 @@ edEl.addEventListener('keydown', function(e) {
   updateHL(); updateLN();
 });
 
+edEl.addEventListener('input', function() {
+  updateHints();
+});
+
+function getHintContainer() {
+  var hintsEl = document.getElementById('code-hints');
+  if (!hintsEl) {
+    hintsEl = document.createElement('div');
+    hintsEl.id = 'code-hints';
+    hintsEl.style.cssText = 'padding:8px 12px;font-size:11px;color:#666;background:#fafafa;border-top:1px solid #ddd;font-family:monospace;user-select:none;max-height:60px;overflow-y:auto;line-height:1.4;';
+    edEl.parentNode.appendChild(hintsEl);
+  }
+  return hintsEl;
+}
+
+function updateHints() {
+  var hints = [];
+  var lines = edEl.value.split('\n');
+  var pos = edEl.selectionStart;
+  var lineStart = 0;
+  var currentLineNum = -1;
+  
+  // Find current line
+  for (var i = 0; i < lines.length; i++) {
+    var lineEnd = lineStart + lines[i].length + 1;
+    if (pos < lineEnd) {
+      currentLineNum = i;
+      var line = lines[i];
+      var inLinePos = pos - lineStart;
+      var trimmed = line.trim();
+      
+      // Skip comments
+      if (trimmed.startsWith('//')) {
+        hints.push('💬 Comment (ignored during parsing)');
+        break;
+      }
+      
+      // ── ID declaration with parameters ──
+      if (/^ID\s*=/.test(trimmed)) {
+        hints.push('🏷️ Structure: ID = structureName([param1], [param2], ...)');
+        hints.push('💡 Example: ID = cylinder([radius], [height])');
+        break;
+      }
+      
+      // ── [var] = math(expr) ──
+      if (/^\[.*\]\s*=\s*math/i.test(trimmed)) {
+        var mathStart = line.indexOf('(');
+        var mathEnd = line.lastIndexOf(')');
+        if (mathStart >= 0 && inLinePos > mathStart && (mathEnd < 0 || inLinePos <= mathEnd)) {
+          hints.push('🔢 Math: sin(x) | cos(x) | tan(x) | sqrt(x) | abs(x) | pow(a,b)');
+          hints.push('📊 Math: max(a,b) | min(a,b) | floor(x) | ceil(x) | round(x) | exp(x) | log(x)');
+          hints.push('⭐ Constants: pi | e');
+          hints.push('📌 Variables: [varname] | Operators: +, -, *, /, (, )');
+        } else {
+          hints.push('📐 Variable Definition: [varname] = math(expression)');
+          hints.push('💡 Example: [size] = math([radius] * 2 + 1)');
+        }
+        break;
+      }
+      
+      // ── fill: style(args) ──
+      if (/^fill\s*:/i.test(trimmed)) {
+        var styleMatch = line.match(/fill\s*:\s*(\w+)/i);
+        var openParen = line.indexOf('(');
+        var closeParen = line.indexOf(')');
+        
+        if (styleMatch) {
+          var style = styleMatch[1].toLowerCase();
+          hints.push('🎨 Fill Styles: none | dot | line | hatch | cross | grid');
+        }
+        
+        if (openParen >= 0 && inLinePos > openParen && (closeParen < 0 || inLinePos <= closeParen)) {
+          if (styleMatch) {
+            var fillStyle = styleMatch[1].toLowerCase();
+            if (fillStyle === 'dot') {
+              hints.push('⭐ dot(offset, density) - offset & density adjust pattern');
+            } else if (['line', 'hatch', 'cross', 'grid'].indexOf(fillStyle) >= 0) {
+              hints.push('⭐ ' + fillStyle + '(angle, spacing, density)');
+              hints.push('   angle: 0-360° | spacing: 0.1+ | density: 0.05+');
+            } else {
+              hints.push('💡 Args: angle, spacing, density (angle-based fill)');
+            }
+          }
+        } else {
+          hints.push('💡 Example: fill: cross(45, 1.5, 1)');
+        }
+        break;
+      }
+      
+      // ── Line definition: a <conn> b ──
+      if (line.includes('<') && line.includes('>')) {
+        var inConnector = false;
+        var connStart = line.indexOf('<');
+        var connEnd = line.indexOf('>');
+        if (connStart < inLinePos && inLinePos <= connEnd) {
+          inConnector = true;
+        }
+        
+        hints.push('━ Line Connectors:');
+        hints.push('  -  (solid) | .. (dotted) | -- (dashed) | -.- (dash-dot) | -..- (dash-dot-dot)');
+        hints.push('📌 Control Points: <...>(pct%, angle, distance) — offset midpoint');
+        
+        if (inConnector) {
+          hints.push('💡 Example: a <->(50%, 90, 0.5) b');
+        } else {
+          hints.push('💡 Example: a <-> b  or  a <..>(ctrl) b');
+        }
+        break;
+      }
+      
+      // ── Midpoint: a~(pct,ang,dst)b = name ──
+      if (line.includes('~') && line.includes('(')) {
+        var tildeParen = /~\([^)]*\)/;
+        if (tildeParen.test(line)) {
+          if (inLinePos > line.indexOf('(') - 1 && inLinePos < (line.lastIndexOf(')') + 1)) {
+            hints.push('🎯 Midpoint: a~(pct%, angle, distance)b = name');
+            hints.push('   pct: 0-100% (position on line)');
+            hints.push('   angle: direction offset from midpoint (degrees)');
+            hints.push('   distance: offset distance from midpoint');
+            hints.push('💡 Example: a~(50%, 90, 0.5)b = peak');
+          } else {
+            hints.push('🎯 Midpoint Definition: a~(pct%, angle, dist)b = newPoint');
+          }
+        }
+        break;
+      }
+      
+      // ── Point definition: angle pointId distance = newId ──
+      if (/^\d+[a-zA-Z_]/.test(trimmed) && trimmed.includes('=') && !trimmed.includes('<')) {
+        hints.push('📍 Point Definition: angle pointId distance = newId');
+        hints.push('   angle: 0° right, counterclockwise');
+        hints.push('   pointId: existing point reference');
+        hints.push('   distance: units (use +/- for relative)');
+        hints.push('💡 Example: 90a1 = b  (1 unit above a)');
+        hints.push('💡 Relative: +45b1 = c  (adds 45° to last angle)');
+        break;
+      }
+      
+      // ── General syntax help at start of new line ──
+      if (trimmed === '' || (i > 0 && !trimmed)) {
+        hints.push('📝 Available Syntax:');
+        hints.push('  ID = name([params])  — Structure definition');
+        hints.push('  0o1 = name  — Point definition');
+        hints.push('  name <-> name  — Line definition');
+        hints.push('  a~(50%,angle,dist)b = name  — Midpoint');
+        hints.push('  a <...>(control) b  — Line with control point');
+        hints.push('  [var] = math(expr)  — Variable calculation');
+        hints.push('  fill: style(args)  — Fill pattern');
+        hints.push('  // comment  — Comment line');
+        break;
+      }
+      
+      // Default hint
+      if (hints.length === 0) {
+        hints.push('? Unrecognized syntax. Type an example or press Ctrl+H for help.');
+      }
+      
+      break;
+    }
+    lineStart = lineEnd;
+  }
+  
+  // Display or hide hints
+  var hintsEl = getHintContainer();
+  if (hints.length > 0) {
+    hintsEl.innerHTML = hints.map(function(h) { return '<div>' + h + '</div>'; }).join('');
+    hintsEl.style.display = 'block';
+  } else {
+    hintsEl.style.display = 'none';
+  }
+}
+
 // Delete key removes selected instance
 document.addEventListener('keydown', function(e) {
   if ((e.key === 'Delete' || e.key === 'Backspace')
@@ -241,6 +413,14 @@ function syncEditorToState() {
     errIcon.style.color  = '#c06030';
     errIcon.textContent  = '▲';
     errTxt.textContent   = result.errs[0] + (result.errs.length > 1 ? ' (+' + (result.errs.length - 1) + ')' : '');
+    document.getElementById('sdot').className = 'sdot error';
+    document.getElementById('stxt').textContent = 'ERROR';
+  }
+
+  renderer.updateProject(proj());
+  updateHints();
+  markDirty();
+}
     document.getElementById('sdot').className = 'sdot error';
     document.getElementById('stxt').textContent = 'ERROR';
   }
@@ -317,7 +497,7 @@ function renderEditor() {
   titleEl.textContent = s ? 'コード — ' + s.name : 'エディター（未選択）';
   edEl.value = s ? s.code : '';
   edEl.disabled = !s;
-  updateHL(); updateLN();
+  updateHL(); updateLN(); updateHints();
   // Show current error state without triggering full sync/dirty
   if (s) {
     var result = parseDotDash(s.code, {});

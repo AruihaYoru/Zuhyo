@@ -85,20 +85,27 @@ ZuhyoRenderer.prototype._getPat = function(type, opts) {
     ctx.fillStyle = 'rgba(26,8,0,.5)';
     ctx.beginPath(); ctx.arc(sz / 2, sz / 2, Math.max(0.6, sz * 0.07), 0, Math.PI * 2); ctx.fill();
   } else {
-    ctx.strokeStyle = 'rgba(26,8,0,.28)'; ctx.lineWidth = 0.8;
+    // Use dark gray (same as line color) for tone patterns
+    ctx.strokeStyle = 'rgba(100,100,100,.3)'; ctx.lineWidth = 0.8;
     ctx.translate(sz / 2, sz / 2);
-    var pitch = Math.max(4, Math.round(10 * spacing / dens));
+    var pitch = Math.max(4, Math.round(8 * spacing));
     
     if (type === 'cross' || type === 'grid') {
-      // For cross/grid: draw diagonal lines at angle and angle+90
+      // Draw first set of lines at angle
+      ctx.save();
       ctx.rotate(angle * Math.PI / 180);
       for (var y = -sz; y <= sz; y += pitch) {
         ctx.beginPath(); ctx.moveTo(-sz, y); ctx.lineTo(sz, y); ctx.stroke();
       }
-      ctx.rotate(Math.PI / 2);
+      ctx.restore();
+      
+      // Draw second set at angle+90
+      ctx.save();
+      ctx.rotate((angle + 90) * Math.PI / 180);
       for (var y2 = -sz; y2 <= sz; y2 += pitch) {
         ctx.beginPath(); ctx.moveTo(-sz, y2); ctx.lineTo(sz, y2); ctx.stroke();
       }
+      ctx.restore();
     } else {
       // For line/hatch: draw single direction
       ctx.rotate(angle * Math.PI / 180);
