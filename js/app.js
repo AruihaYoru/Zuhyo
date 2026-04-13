@@ -181,7 +181,7 @@ edEl.addEventListener('scroll', function() {
   lnEl.scrollTop  = edEl.scrollTop;
 });
 
-edEl.addEventListener('keydown', function(e) {
+edEl.addEventListener('keydown', function(ea) {
   if (e.ctrlKey && (e.key === 'h' || e.key === 'H')) {
     e.preventDefault();
     HINTS_VISIBLE = !HINTS_VISIBLE;

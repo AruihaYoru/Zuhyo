@@ -434,15 +434,16 @@ ZuhyoRenderer.prototype._renderFill = function(group, pts) {
   ctx.strokeStyle = 'rgba(26,8,0,.28)';
   ctx.lineWidth = 1.2;
   ctx.fillStyle = 'rgba(26,8,0,.45)';
-  // Pitch should scale with renderer scale so textures zoom appropriately
-  var pitch = Math.max(6, Math.round(14 * spacing * this.scale / dens));
+  // Determine pattern spacing in screen pixels (independent of world unit scale)
+  var pitchPx = Math.max(6, Math.round(12 * spacing / Math.max(0.01, dens)));
 
   if (style === 'dot') {
-    var dotPitch = Math.max(6, Math.round(14 * spacing * this.scale / dens));
-    for (var dx = minX - pitch; dx <= maxX + pitch; dx += dotPitch) {
-      for (var dy = minY - pitch; dy <= maxY + pitch; dy += dotPitch) {
+    var dotPitchPx = Math.max(6, Math.round(12 * spacing / Math.max(0.01, dens)));
+    // Fill via screen-space grid: iterate in pixel coordinates then draw translated into canvas
+    for (var sx = Math.floor(minX - dotPitchPx); sx <= Math.ceil(maxX + dotPitchPx); sx += dotPitchPx) {
+      for (var sy = Math.floor(minY - dotPitchPx); sy <= Math.ceil(maxY + dotPitchPx); sy += dotPitchPx) {
         ctx.beginPath();
-        ctx.arc(dx + offsetX * this.scale, dy + offsetY * this.scale, Math.max(0.8, dotPitch * 0.08), 0, Math.PI * 2);
+        ctx.arc(sx + offsetX * this.scale, sy + offsetY * this.scale, Math.max(0.8, dotPitchPx * 0.08), 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -460,9 +461,11 @@ ZuhyoRenderer.prototype._renderFill = function(group, pts) {
 
       // Compute line bounds in bbox
       var lines = [];
-      var step = pitch;
+      // Use pixel-based spacing so multiple lines appear reliably
+      var step = pitchPx;
       var bboxW = maxX - minX, bboxH = maxY - minY;
-      var numLines = Math.ceil((bboxW + bboxH) / step) + 2;
+      var diag = Math.ceil(Math.hypot(bboxW, bboxH)) + 2000;
+      var numLines = Math.ceil(diag / step) + 2;
       for (var li = -numLines; li <= numLines; li++) {
         var offset = li * step;
         var startX = minX + offset * cos - 1000 * perpCos;
@@ -473,10 +476,20 @@ ZuhyoRenderer.prototype._renderFill = function(group, pts) {
       }
 
       for (var li = 0; li < lines.length; li++) {
+        // avoid exact overlap with shape edges by applying a tiny perpendicular jitter
+        var s = lines[li];
+        var jitter = ((li & 1) ? 0.5 : -0.5);
+        var sx = s.sx + perpCos * jitter, sy = s.sy + perpSin * jitter;
+        var ex = s.ex + perpCos * jitter, ey = s.ey + perpSin * jitter;
+        ctx.save();
+        // Use same visual style as connectors: dark ink and similar width
+        ctx.strokeStyle = '#1a0800';
+        ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.moveTo(lines[li].sx, lines[li].sy);
-        ctx.lineTo(lines[li].ex, lines[li].ey);
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex, ey);
         ctx.stroke();
+        ctx.restore();
       }
     }
   }
