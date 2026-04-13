@@ -432,10 +432,11 @@ ZuhyoRenderer.prototype._renderFill = function(group, pts) {
   ctx.strokeStyle = 'rgba(26,8,0,.28)';
   ctx.lineWidth = 1.2;
   ctx.fillStyle = 'rgba(26,8,0,.45)';
-  var pitch = Math.max(8, Math.round(14 * spacing / dens));
+  // Pitch should scale with renderer scale so textures zoom appropriately
+  var pitch = Math.max(6, Math.round(14 * spacing * this.scale / dens));
 
   if (style === 'dot') {
-    var dotPitch = Math.max(8, Math.round(14 * spacing / dens));
+    var dotPitch = Math.max(6, Math.round(14 * spacing * this.scale / dens));
     for (var dx = minX - pitch; dx <= maxX + pitch; dx += dotPitch) {
       for (var dy = minY - pitch; dy <= maxY + pitch; dy += dotPitch) {
         ctx.beginPath();
