@@ -165,6 +165,7 @@ var hlEl    = document.getElementById('hl-layer');
 var lnEl    = document.getElementById('line-nums');
 var errIcon = document.getElementById('err-icon');
 var errTxt  = document.getElementById('err-txt');
+var HINTS_VISIBLE = false;
 
 var _parseTimer = null;
 
@@ -181,6 +182,12 @@ edEl.addEventListener('scroll', function() {
 });
 
 edEl.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && (e.key === 'h' || e.key === 'H')) {
+    e.preventDefault();
+    HINTS_VISIBLE = !HINTS_VISIBLE;
+    updateHints();
+    return;
+  }
   if (e.key !== 'Tab') return;
   e.preventDefault();
   var s   = edEl.selectionStart, end = edEl.selectionEnd;
@@ -212,6 +219,7 @@ function updateHints() {
   var pos = edEl.selectionStart;
   var lineStart = 0;
   var currentLineNum = -1;
+  var recognized = false;
   
   // Find current line
   for (var i = 0; i < lines.length; i++) {
@@ -224,58 +232,68 @@ function updateHints() {
       
       // Skip comments
       if (trimmed.startsWith('//')) {
-        hints.push('💬 Comment (ignored during parsing)');
+        recognized = true;
+        if (HINTS_VISIBLE) hints.push('💬 Comment (ignored during parsing)');
         break;
       }
       
       // ── ID declaration with parameters ──
       if (/^ID\s*=/.test(trimmed)) {
-        hints.push('🏷️ Structure: ID = structureName([param1], [param2], ...)');
-        hints.push('💡 Example: ID = cylinder([radius], [height])');
+        recognized = true;
+        if (HINTS_VISIBLE) {
+          hints.push('🏷️ Structure: ID = structureName([param1], [param2], ...)');
+          hints.push('💡 Example: ID = cylinder([radius], [height])');
+        }
         break;
       }
       
       // ── [var] = math(expr) ──
       if (/^\[.*\]\s*=\s*math/i.test(trimmed)) {
-        var mathStart = line.indexOf('(');
-        var mathEnd = line.lastIndexOf(')');
-        if (mathStart >= 0 && inLinePos > mathStart && (mathEnd < 0 || inLinePos <= mathEnd)) {
-          hints.push('🔢 Math: sin(x) | cos(x) | tan(x) | sqrt(x) | abs(x) | pow(a,b)');
-          hints.push('📊 Math: max(a,b) | min(a,b) | floor(x) | ceil(x) | round(x) | exp(x) | log(x)');
-          hints.push('⭐ Constants: pi | e');
-          hints.push('📌 Variables: [varname] | Operators: +, -, *, /, (, )');
-        } else {
-          hints.push('📐 Variable Definition: [varname] = math(expression)');
-          hints.push('💡 Example: [size] = math([radius] * 2 + 1)');
+        recognized = true;
+        if (HINTS_VISIBLE) {
+          var mathStart = line.indexOf('(');
+          var mathEnd = line.lastIndexOf(')');
+          if (mathStart >= 0 && inLinePos > mathStart && (mathEnd < 0 || inLinePos <= mathEnd)) {
+            hints.push('🔢 Math: sin(x) | cos(x) | tan(x) | sqrt(x) | abs(x) | pow(a,b)');
+            hints.push('📊 Math: max(a,b) | min(a,b) | floor(x) | ceil(x) | round(x) | exp(x) | log(x)');
+            hints.push('⭐ Constants: pi | e');
+            hints.push('📌 Variables: [varname] | Operators: +, -, *, /, (, )');
+          } else {
+            hints.push('📐 Variable Definition: [varname] = math(expression)');
+            hints.push('💡 Example: [size] = math([radius] * 2 + 1)');
+          }
         }
         break;
       }
       
       // ── fill: style(args) ──
       if (/^fill\s*:/i.test(trimmed)) {
-        var styleMatch = line.match(/fill\s*:\s*(\w+)/i);
-        var openParen = line.indexOf('(');
-        var closeParen = line.indexOf(')');
-        
-        if (styleMatch) {
-          var style = styleMatch[1].toLowerCase();
-          hints.push('🎨 Fill Styles: none | dot | line | hatch | cross | grid');
-        }
-        
-        if (openParen >= 0 && inLinePos > openParen && (closeParen < 0 || inLinePos <= closeParen)) {
+        recognized = true;
+        if (HINTS_VISIBLE) {
+          var styleMatch = line.match(/fill\s*:\s*(\w+)/i);
+          var openParen = line.indexOf('(');
+          var closeParen = line.indexOf(')');
+          
           if (styleMatch) {
-            var fillStyle = styleMatch[1].toLowerCase();
-            if (fillStyle === 'dot') {
-              hints.push('⭐ dot(offset, density) - offset & density adjust pattern');
-            } else if (['line', 'hatch', 'cross', 'grid'].indexOf(fillStyle) >= 0) {
-              hints.push('⭐ ' + fillStyle + '(angle, spacing, density)');
-              hints.push('   angle: 0-360° | spacing: 0.1+ | density: 0.05+');
-            } else {
-              hints.push('💡 Args: angle, spacing, density (angle-based fill)');
-            }
+            var style = styleMatch[1].toLowerCase();
+            hints.push('🎨 Fill Styles: none | dot | line | hatch | cross | grid');
           }
-        } else {
-          hints.push('💡 Example: fill: cross(45, 1.5, 1)');
+          
+          if (openParen >= 0 && inLinePos > openParen && (closeParen < 0 || inLinePos <= closeParen)) {
+            if (styleMatch) {
+              var fillStyle = styleMatch[1].toLowerCase();
+              if (fillStyle === 'dot') {
+                hints.push('⭐ dot(offset, density) - offset & density adjust pattern');
+              } else if (['line', 'hatch', 'cross', 'grid'].indexOf(fillStyle) >= 0) {
+                hints.push('⭐ ' + fillStyle + '(angle, spacing, density)');
+                hints.push('   angle: 0-360° | spacing: 0.1+ | density: 0.05+');
+              } else {
+                hints.push('💡 Args: angle, spacing, density (angle-based fill)');
+              }
+            }
+          } else {
+            hints.push('💡 Example: fill: cross(45, 1.5, 1)');
+          }
         }
         break;
       }
@@ -320,26 +338,32 @@ function updateHints() {
       
       // ── Point definition: angle pointId distance = newId ──
       if (/^\d+[a-zA-Z_]/.test(trimmed) && trimmed.includes('=') && !trimmed.includes('<')) {
-        hints.push('📍 Point Definition: angle pointId distance = newId');
-        hints.push('   angle: 0° right, counterclockwise');
-        hints.push('   pointId: existing point reference');
-        hints.push('   distance: units (use +/- for relative)');
-        hints.push('💡 Example: 90a1 = b  (1 unit above a)');
-        hints.push('💡 Relative: +45b1 = c  (adds 45° to last angle)');
+        recognized = true;
+        if (HINTS_VISIBLE) {
+          hints.push('📍 Point Definition: angle pointId distance = newId');
+          hints.push('   angle: 0° right, counterclockwise');
+          hints.push('   pointId: existing point reference');
+          hints.push('   distance: units (use +/- for relative)');
+          hints.push('💡 Example: 90a1 = b  (1 unit above a)');
+          hints.push('💡 Relative: +45b1 = c  (adds 45° to last angle)');
+        }
         break;
       }
       
       // ── General syntax help at start of new line ──
       if (trimmed === '' || (i > 0 && !trimmed)) {
-        hints.push('📝 Available Syntax:');
-        hints.push('  ID = name([params])  — Structure definition');
-        hints.push('  0o1 = name  — Point definition');
-        hints.push('  name <-> name  — Line definition');
-        hints.push('  a~(50%,angle,dist)b = name  — Midpoint');
-        hints.push('  a <...>(control) b  — Line with control point');
-        hints.push('  [var] = math(expr)  — Variable calculation');
-        hints.push('  fill: style(args)  — Fill pattern');
-        hints.push('  // comment  — Comment line');
+        recognized = true;
+        if (HINTS_VISIBLE) {
+          hints.push('📝 Available Syntax:');
+          hints.push('  ID = name([params])  — Structure definition');
+          hints.push('  0o1 = name  — Point definition');
+          hints.push('  name <-> name  — Line definition');
+          hints.push('  a~(50%,angle,dist)b = name  — Midpoint');
+          hints.push('  a <...>(control) b  — Line with control point');
+          hints.push('  [var] = math(expr)  — Variable calculation');
+          hints.push('  fill: style(args)  — Fill pattern');
+          hints.push('  // comment  — Comment line');
+        }
         break;
       }
       
@@ -355,6 +379,10 @@ function updateHints() {
   
   // Display or hide hints
   var hintsEl = getHintContainer();
+  if (!HINTS_VISIBLE && recognized) {
+    hintsEl.style.display = 'none';
+    return;
+  }
   if (hints.length > 0) {
     hintsEl.innerHTML = hints.map(function(h) { return '<div>' + h + '</div>'; }).join('');
     hintsEl.style.display = 'block';

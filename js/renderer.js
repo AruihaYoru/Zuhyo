@@ -431,11 +431,11 @@ ZuhyoRenderer.prototype._renderFill = function(group, pts) {
   // Draw fill directly
   ctx.strokeStyle = 'rgba(26,8,0,.28)';
   ctx.lineWidth = 1.2;
-  ctx.fillStyle = 'rgba(26,8,0,.35)';
-  var pitch = Math.max(4, Math.round(10 * spacing * this.scale / dens));
+  ctx.fillStyle = 'rgba(26,8,0,.45)';
+  var pitch = Math.max(8, Math.round(14 * spacing / dens));
 
   if (style === 'dot') {
-    var dotPitch = Math.max(6, Math.round(12 * spacing * this.scale / dens));
+    var dotPitch = Math.max(8, Math.round(14 * spacing / dens));
     for (var dx = minX - pitch; dx <= maxX + pitch; dx += dotPitch) {
       for (var dy = minY - pitch; dy <= maxY + pitch; dy += dotPitch) {
         ctx.beginPath();
@@ -444,6 +444,7 @@ ZuhyoRenderer.prototype._renderFill = function(group, pts) {
       }
     }
   } else {
+    ctx.strokeStyle = 'rgba(26,8,0,.45)';
     var directions = [];
     if (style === 'line' || style === 'hatch') directions = [angle];
     else if (style === 'cross' || style === 'grid') directions = [angle, angle + 90];
