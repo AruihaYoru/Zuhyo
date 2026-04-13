@@ -77,29 +77,27 @@ ZuhyoRenderer.prototype._getPat = function(type, opts) {
   var key = type + '_' + angle.toFixed(1) + '_' + spacing.toFixed(2) + '_' + dens.toFixed(2);
   if (this._pats[key]) return this._pats[key];
 
-  var sz = Math.max(8, Math.round(16 * spacing / dens));
+  var sz = Math.max(12, Math.round(24 * spacing / dens));
   var c = document.createElement('canvas'); c.width = sz; c.height = sz;
   var ctx = c.getContext('2d');
 
   if (type === 'dot') {
-    ctx.fillStyle = 'rgba(26,8,0,.5)';
-    ctx.beginPath(); ctx.arc(sz / 2, sz / 2, Math.max(0.6, sz * 0.07), 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(26,8,0,.35)';
+    ctx.beginPath(); ctx.arc(sz / 2, sz / 2, Math.max(0.8, sz * 0.08), 0, Math.PI * 2); ctx.fill();
   } else {
-    // Use dark gray (same as line color) for tone patterns
-    ctx.strokeStyle = 'rgba(100,100,100,.3)'; ctx.lineWidth = 0.8;
+    ctx.strokeStyle = 'rgba(26,8,0,.28)';
+    ctx.lineWidth = 1.2;
     ctx.translate(sz / 2, sz / 2);
-    var pitch = Math.max(4, Math.round(8 * spacing));
-    
+    var pitch = Math.max(4, Math.round(10 * spacing / dens));
+
     if (type === 'cross' || type === 'grid') {
-      // Draw first set of lines at angle
       ctx.save();
       ctx.rotate(angle * Math.PI / 180);
       for (var y = -sz; y <= sz; y += pitch) {
         ctx.beginPath(); ctx.moveTo(-sz, y); ctx.lineTo(sz, y); ctx.stroke();
       }
       ctx.restore();
-      
-      // Draw second set at angle+90
+
       ctx.save();
       ctx.rotate((angle + 90) * Math.PI / 180);
       for (var y2 = -sz; y2 <= sz; y2 += pitch) {
@@ -107,7 +105,6 @@ ZuhyoRenderer.prototype._getPat = function(type, opts) {
       }
       ctx.restore();
     } else {
-      // For line/hatch: draw single direction
       ctx.rotate(angle * Math.PI / 180);
       for (var y = -sz; y <= sz; y += pitch) {
         ctx.beginPath(); ctx.moveTo(-sz, y); ctx.lineTo(sz, y); ctx.stroke();
@@ -503,9 +500,9 @@ ZuhyoRenderer.prototype.exportSVG = function() {
   o.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
   o.push('<rect width="' + W + '" height="' + H + '" fill="#fdf9f0"/>');
   o.push('<defs>');
-  o.push('<pattern id="zpd" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r="1" fill="rgba(26,8,0,.5)"/></pattern>');
-  o.push('<pattern id="zpl" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="-10" x2="0" y2="20" stroke="rgba(26,8,0,.28)" stroke-width=".8"/></pattern>');
-  o.push('<pattern id="zpc" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="-10" x2="0" y2="20" stroke="rgba(26,8,0,.28)" stroke-width=".8"/><line x1="-10" y1="0" x2="20" y2="0" stroke="rgba(26,8,0,.28)" stroke-width=".8"/></pattern>');
+  o.push('<pattern id="zpd" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r="1" fill="rgba(26,8,0,.35)"/></pattern>');
+  o.push('<pattern id="zpl" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="-10" x2="0" y2="20" stroke="rgba(26,8,0,.28)" stroke-width="1.2"/></pattern>');
+  o.push('<pattern id="zpc" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="-10" x2="0" y2="20" stroke="rgba(26,8,0,.28)" stroke-width="1.2"/><line x1="-10" y1="0" x2="20" y2="0" stroke="rgba(26,8,0,.28)" stroke-width="1.2"/></pattern>');
   o.push('</defs>');
   o.push('<line x1="0" y1="' + rawCy.toFixed(1) + '" x2="' + W + '" y2="' + rawCy.toFixed(1) + '" stroke="rgba(100,60,10,.22)"/>');
   o.push('<line x1="' + rawCx.toFixed(1) + '" y1="0" x2="' + rawCx.toFixed(1) + '" y2="' + H + '" stroke="rgba(100,60,10,.22)"/>');
