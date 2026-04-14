@@ -9,8 +9,15 @@ function _grp(cmds) {
   for (var i = 0; i < cmds.length; i++) {
     var d = cmds[i];
     if (d.type === 'sep') c = null;
-    else if (d.type === 'line') { if (!c) { c = { lines: [], fill: null }; g.push(c); } c.lines.push(d); }
-    else if (d.type === 'fill') { if (!c) { c = { lines: [], fill: null }; g.push(c); } c.fill = d; }
+    else if (d.type === 'line' || d.type === 'circle') {
+      if (!c) { c = { lines: [], circles: [], fill: null }; g.push(c); }
+      if (d.type === 'line') c.lines.push(d);
+      else c.circles.push(d);
+    }
+    else if (d.type === 'fill') {
+      if (!c) { c = { lines: [], circles: [], fill: null }; g.push(c); }
+      c.fill = d;
+    }
   }
   return g;
 }
@@ -65,6 +72,18 @@ function ZuhyoRenderer(canvas) {
 
   // Fill pattern cache (removed)
   // this._pats = {};
+  
+  // Font for vector rendering
+  this.font = null;
+  var self = this;
+  opentype.load('https://cdn.jsdelivr.net/gh/google/fonts@master/ofl/spacemono/SpaceMono-Regular.ttf', function(err, font) {
+    if (err) console.error('Font could not be loaded: ' + err);
+    else {
+      self.font = font;
+      self.draw();
+    }
+  });
+
   this._bindEvents();
 }
 
@@ -173,16 +192,69 @@ ZuhyoRenderer.prototype.snapVal = function(v) {
 
 ZuhyoRenderer.prototype._hitTest = function(cx, cy) {
   var ids = Object.keys(this._dispMap), best = null, bestD = 20;
+
   for (var i = 0; i < ids.length; i++) {
-    var inst = this._dispMap[ids[i]], pks = Object.keys(inst.pts);
+    var id = ids[i], inst = this._dispMap[id], pts = inst.pts;
+    
+    // 1. Check points
+    var pks = Object.keys(pts);
     for (var j = 0; j < pks.length; j++) {
       if (pks[j] === 'o') continue;
-      var pc = this._w2c(inst.pts[pks[j]].x, inst.pts[pks[j]].y);
+      var pc = this._w2c(pts[pks[j]].x, pts[pks[j]].y);
       var d = Math.hypot(pc.x - cx, pc.y - cy);
-      if (d < bestD) { bestD = d; best = ids[i]; }
+      if (d < bestD) { bestD = d; best = id; }
+    }
+
+    // 2. Check commands (Text/Label/Circle)
+    for (var ci = 0; ci < inst.cmds.length; ci++) {
+      var cmd = inst.cmds[ci];
+      if (cmd.type === 'text' || cmd.type === 'label') {
+        var p1 = pts[cmd.p1], p2 = pts[cmd.p2] || p1;
+        if (!p1 || !p2) continue;
+        var c1 = this._w2c(p1.x, p1.y), c2 = this._w2c(p2.x, p2.y);
+        var minX = Math.min(c1.x, c2.x), maxX = Math.max(c1.x, c2.x);
+        var minY = Math.min(c1.y, c2.y), maxY = Math.max(c1.y, c2.y);
+        
+        // For label, p1=p2, so we add some padding
+        if (cmd.type === 'label') {
+          var sz = (cmd.size || 0.4) * this.scale;
+          minX -= 5; maxX += sz * 5; // Rough estimate
+          minY -= sz; maxY += 5;
+        }
+
+        if (cx >= minX && cx <= maxX && cy >= minY && cy <= maxY) {
+          best = id; bestD = 5; // Close match
+        }
+      } else if (cmd.type === 'circle') {
+        var ctr = pts[cmd.center];
+        if (!ctr) continue;
+        var cc = this._w2c(ctr.x, ctr.y), rpx = cmd.r * this.scale;
+        var dToCenter = Math.hypot(cc.x - cx, cc.y - cy);
+        if (Math.abs(dToCenter - rpx) < 10) { // Click on edge
+          best = id; bestD = 8;
+        }
+      }
     }
   }
   return best;
+};
+
+
+
+ZuhyoRenderer.prototype._drawCircle = function(cmd, pts) {
+  var ctr = pts[cmd.center];
+  if (!ctr) return;
+  var cc = this._w2c(ctr.x, ctr.y);
+  var rpx = cmd.r * this.scale;
+  
+  var ctx = this.ctx;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cc.x, cc.y, rpx, 0, Math.PI * 2);
+  ctx.strokeStyle = '#1a0800';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  ctx.restore();
 };
 
 /* ── Project update + animation ── */
@@ -247,31 +319,43 @@ ZuhyoRenderer.prototype.draw = function() {
 
 ZuhyoRenderer.prototype._drawGrid = function(W, H) {
   var ctx = this.ctx, sc = this.scale;
-  // Half-pixel snap: crisp 1px lines on integer boundaries
   var rawCx = W / 2 + this.offX, rawCy = H / 2 + this.offY;
   var cx = Math.floor(rawCx) + 0.5, cy = Math.floor(rawCy) + 0.5;
 
-  // Minor grid (skip when too zoomed out)
   if (!this.showGrid) return;
+  
+  // Snap starting positions to half-pixel to match axis rendering
+  var sfx = ((Math.floor(rawCx) % sc) + sc) % sc + 0.5;
+  var sfy = ((Math.floor(rawCy) % sc) + sc) % sc + 0.5;
+
   if (sc >= 20) {
+    // Minor grid
     ctx.strokeStyle = 'rgba(100,60,10,.07)'; ctx.lineWidth = 0.5; ctx.setLineDash([]);
-    var fx = ((rawCx % sc) + sc) % sc, fy = ((rawCy % sc) + sc) % sc;
-    for (var gx = fx; gx < W; gx += sc) {
-      var sx = Math.floor(gx) + 0.5;
-      ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); ctx.stroke();
+    ctx.beginPath();
+    for (var x = sfx; x <= W; x += sc) {
+      ctx.moveTo(x, 0); ctx.lineTo(x, H);
     }
-    for (var gy = fy; gy < H; gy += sc) {
-      var sy = Math.floor(gy) + 0.5;
-      ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(W, sy); ctx.stroke();
+    for (var y = sfy; y <= H; y += sc) {
+      ctx.moveTo(0, y); ctx.lineTo(W, y);
     }
+    ctx.stroke();
+
+    // Major grid (every 5 units)
+    ctx.strokeStyle = 'rgba(100,60,10,.12)'; ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    for (var mx = sfx; mx <= W; mx += sc * 5) {
+      ctx.moveTo(mx, 0); ctx.lineTo(mx, H);
+    }
+    for (var my = sfy; my <= H; my += sc * 5) {
+      ctx.moveTo(0, my); ctx.lineTo(W, my);
+    }
+    ctx.stroke();
   }
 
-  // Axes
   ctx.strokeStyle = 'rgba(100,60,10,.22)'; ctx.lineWidth = 1; ctx.setLineDash([]);
   ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
 
-  // Tick labels
   if (sc > 28) {
     ctx.font = '9px Space Mono, monospace'; ctx.fillStyle = 'rgba(100,60,10,.28)';
     var R = Math.ceil(Math.max(W, H) / sc) + 1;
@@ -283,7 +367,6 @@ ZuhyoRenderer.prototype._drawGrid = function(W, H) {
     }
   }
 
-  // Grid snap dots
   if (this.gridSnap && sc >= 30) {
     ctx.fillStyle = 'rgba(139,90,26,.18)';
     var sfx = ((rawCx % sc) + sc) % sc, sfy = ((rawCy % sc) + sc) % sc;
@@ -296,7 +379,6 @@ ZuhyoRenderer.prototype._drawGrid = function(W, H) {
 
 ZuhyoRenderer.prototype._drawOrigin = function() {
   var c = this._w2c(0, 0), ctx = this.ctx;
-  // Snap to half-pixel to match grid axes
   c.x = Math.floor(c.x) + 0.5; c.y = Math.floor(c.y) + 0.5;
   var r = 8;
   ctx.strokeStyle = 'rgba(150,90,20,.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
@@ -312,7 +394,6 @@ ZuhyoRenderer.prototype._drawOrigin = function() {
 ZuhyoRenderer.prototype._drawInst = function(instId, inst) {
   var sel = instId === this.selInstId, groups = _grp(inst.cmds);
 
-  // Selection bbox
   if (sel) {
     var pks = Object.keys(inst.pts);
     if (pks.length) {
@@ -336,12 +417,80 @@ ZuhyoRenderer.prototype._drawInst = function(instId, inst) {
     var g = groups[fi];
     if (g.fill && g.fill.style !== 'none') this._renderFill(g, inst.pts);
   }
-  for (var li = 0; li < groups.length; li++)
+  for (var li = 0; li < groups.length; li++) {
     for (var si = 0; si < groups[li].lines.length; si++)
       this._drawSeg(groups[li].lines[si], inst.pts, sel);
+    for (var ci = 0; ci < groups[li].circles.length; ci++)
+      this._drawCircle(groups[li].circles[ci], inst.pts);
+  }
+
+  for (var ci = 0; ci < inst.cmds.length; ci++) {
+    var cmd = inst.cmds[ci];
+    if (cmd.type === 'plot') this._drawPlot(cmd, inst.pts);
+    if (cmd.type === 'text') this._drawText(cmd, inst.pts, sel);
+    if (cmd.type === 'label') this._drawLabel(cmd, inst.pts);
+  }
+
   var ptKeys = Object.keys(inst.pts);
   for (var pi = 0; pi < ptKeys.length; pi++)
     if (ptKeys[pi] !== 'o') this._drawPt(ptKeys[pi], inst.pts[ptKeys[pi]], sel);
+};
+
+ZuhyoRenderer.prototype._drawPlot = function(cmd, pts) {
+  var ctx = this.ctx;
+  ctx.save();
+  ctx.strokeStyle = '#2a1a08'; ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  var first = true;
+  var iter = 0;
+  for (var x = cmd.start; (cmd.step > 0 ? x <= cmd.end : x >= cmd.end); x += cmd.step) {
+    if (++iter > 2000) break; // Safety limit
+    try {
+      var y = _evalMath(cmd.expr.replace(/\bx\b/g, '(' + x + ')'), cmd.vars);
+      var c = this._w2c(x, y);
+      if (first) { ctx.moveTo(c.x, c.y); first = false; }
+      else ctx.lineTo(c.x, c.y);
+    } catch(e) {}
+  }
+  ctx.stroke(); ctx.restore();
+};
+
+ZuhyoRenderer.prototype._drawText = function(cmd, pts, sel) {
+  var p1 = pts[cmd.p1], p2 = pts[cmd.p2];
+  if (!p1 || !p2) return;
+  
+  var c1 = this._w2c(p1.x, p1.y), c2 = this._w2c(p2.x, p2.y);
+  var rect = {
+    x: Math.min(c1.x, c2.x), y: Math.min(c1.y, c2.y),
+    w: Math.abs(c2.x - c1.x), h: Math.abs(c2.y - c1.y)
+  };
+  if (rect.w < 1 || rect.h < 1) return;
+
+  var ctx = this.ctx;
+  ctx.save();
+  
+  // Use a base font size and system fonts for robust Japanese support
+  var baseSize = 80;
+  ctx.font = 'bold ' + baseSize + 'px "Space Mono", "Meiryo", "Hiragino Kaku Gothic ProN", "MS PGothic", sans-serif';
+  var metrics = ctx.measureText(cmd.content);
+  
+  // Calculate bounding box using modern metrics if available, or fallback to estimation
+  var textW = metrics.width;
+  var textH = (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent) || (baseSize * 0.85);
+  var offY = metrics.actualBoundingBoxAscent || (baseSize * 0.75);
+
+  if (textW > 0 && textH > 0) {
+    var scaleX = rect.w / textW;
+    var scaleY = rect.h / textH;
+    
+    ctx.translate(rect.x, rect.y + offY * scaleY);
+    ctx.scale(scaleX, scaleY);
+    
+    ctx.fillStyle = sel ? '#3a1800' : '#1c0d00';
+    ctx.fillText(cmd.content, 0, 0);
+  }
+  
+  ctx.restore();
 };
 
 ZuhyoRenderer.prototype._drawSeg = function(seg, pts, sel) {
@@ -354,14 +503,68 @@ ZuhyoRenderer.prototype._drawSeg = function(seg, pts, sel) {
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.setLineDash(seg.lt.dash || []);
   ctx.beginPath(); ctx.moveTo(ac.x, ac.y);
+  this._traceSeg(ctx, seg, ac, bc);
+  ctx.stroke(); ctx.restore();
+};
+
+ZuhyoRenderer.prototype._traceSeg = function(ctx, seg, ac, bc) {
   if (seg.ctrl.length === 1) {
-    var cp = this._cp(ac, bc, seg.ctrl[0]);
-    ctx.quadraticCurveTo(cp.x, cp.y, bc.x, bc.y);
-  } else if (seg.ctrl.length >= 2) {
+    // ── 1 Control Point: Ellipse (at 50%) or Circular Arc ──
+    var c = seg.ctrl[0];
+    var cp = this._cp(ac, bc, c);
+    
+    // Use ellipse if centered at 50%, providing smooth perpendicular tangents at ends
+    if (Math.abs(c.pct - 0.5) < 0.01) {
+      var dx = bc.x - ac.x, dy = bc.y - ac.y;
+      var dist = Math.hypot(dx, dy);
+      var midX = (ac.x + bc.x) / 2;
+      var midY = (ac.y + bc.y) / 2;
+      var angle = Math.atan2(dy, dx);
+      var rx = dist / 2;
+      var ry = Math.hypot(cp.x - midX, cp.y - midY);
+      
+      // Determine clockwise/counter-clockwise based on cross product
+      var cross = dx * (cp.y - midY) - dy * (cp.x - midX);
+      ctx.ellipse(midX, midY, rx, ry, angle, Math.PI, 0, cross > 0);
+    } else {
+      // Fallback to circular arc for off-center control points
+      var circle = this._getCircle(ac, bc, cp);
+      if (!circle) {
+        ctx.lineTo(bc.x, bc.y);
+      } else {
+        var sa = Math.atan2(ac.y - circle.y, ac.x - circle.x);
+        var ea = Math.atan2(bc.y - circle.y, bc.x - circle.x);
+        var ma = Math.atan2(cp.y - circle.y, cp.x - circle.x);
+        var diff = ea - sa;
+        while (diff < 0) diff += Math.PI * 2;
+        while (diff > Math.PI * 2) diff -= Math.PI * 2;
+        var mDiff = ma - sa;
+        while (mDiff < 0) mDiff += Math.PI * 2;
+        while (mDiff > Math.PI * 2) mDiff -= Math.PI * 2;
+        ctx.arc(circle.x, circle.y, circle.r, sa, ea, mDiff > diff);
+      }
+    }
+  } else if (seg.ctrl.length === 2) {
+    // ── Cubic Bezier ──
     var c1 = this._cp(ac, bc, seg.ctrl[0]), c2 = this._cp(ac, bc, seg.ctrl[1]);
     ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, bc.x, bc.y);
-  } else { ctx.lineTo(bc.x, bc.y); }
-  ctx.stroke(); ctx.restore();
+  } else if (seg.ctrl.length > 2) {
+    // ── Higher Order (Approx with first two) ──
+    var c1 = this._cp(ac, bc, seg.ctrl[0]), c2 = this._cp(ac, bc, seg.ctrl[seg.ctrl.length - 1]);
+    ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, bc.x, bc.y);
+  } else {
+    ctx.lineTo(bc.x, bc.y);
+  }
+};
+
+ZuhyoRenderer.prototype._getCircle = function(A, B, C) {
+  var x1 = A.x, y1 = A.y, x2 = B.x, y2 = B.y, x3 = C.x, y3 = C.y;
+  var D = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+  if (Math.abs(D) < 0.1) return null; // Collinear or too close
+  var cx = ((x1 * x1 + y1 * y1) * (y2 - y3) + (x2 * x2 + y2 * y2) * (y3 - y1) + (x3 * x3 + y3 * y3) * (y1 - y2)) / D;
+  var cy = ((x1 * x1 + y1 * y1) * (x3 - x2) + (x2 * x2 + y2 * y2) * (x1 - x3) + (x3 * x3 + y3 * y3) * (x2 - x1)) / D;
+  var r = Math.sqrt((x1 - cx) * (x1 - cx) + (y1 - cy) * (y1 - cy));
+  return { x: cx, y: cy, r: r };
 };
 
 ZuhyoRenderer.prototype._cp = function(ac, bc, c) {
@@ -385,7 +588,6 @@ ZuhyoRenderer.prototype._drawPt = function(id, pt, sel) {
 /* ── Fill (direct drawing) ── */
 ZuhyoRenderer.prototype._renderFill = function(group, pts) {
   var ctx = this.ctx, path = _ord(group.lines);
-  if (!path.length) return;
   var fa = group.fill.args || [];
   var style = group.fill.style;
   var angle = 0, spacing = 1, dens = 1, offsetX = 0, offsetY = 0;
@@ -402,48 +604,62 @@ ZuhyoRenderer.prototype._renderFill = function(group, pts) {
     offsetX = fa.length >= 1 ? fa[0] : 0;
     offsetY = fa.length >= 2 ? fa[1] : 0;
     dens    = fa.length >= 3 ? fa[2] : 1;
-  } else {
-    offsetX = fa.length >= 1 ? fa[0] : 0;
-    offsetY = fa.length >= 2 ? fa[1] : 0;
-    dens    = fa.length >= 3 ? fa[2] : 1;
   }
 
-  // Create path and compute bbox
-  ctx.save();
-  ctx.beginPath();
-  var first = true, minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (var i = 0; i < path.length; i++) {
-    var seg = path[i], A = pts[seg.from], B = pts[seg.to];
-    if (!A || !B) continue;
-    var ac = this._w2c(A.x, A.y), bc = this._w2c(B.x, B.y);
-    if (first) { ctx.moveTo(ac.x, ac.y); first = false; }
-    if (seg.ctrl.length === 1) {
-      var cp = this._cp(ac, bc, seg.ctrl[0]);
-      ctx.quadraticCurveTo(cp.x, cp.y, bc.x, bc.y);
-    } else if (seg.ctrl.length >= 2) {
-      var c1 = this._cp(ac, bc, seg.ctrl[0]), c2 = this._cp(ac, bc, seg.ctrl[1]);
-      ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, bc.x, bc.y);
-    } else { ctx.lineTo(bc.x, bc.y); }
-    minX = Math.min(minX, ac.x, bc.x); maxX = Math.max(maxX, ac.x, bc.x);
-    minY = Math.min(minY, ac.y, bc.y); maxY = Math.max(maxY, ac.y, bc.y);
+  if (path.length > 0) {
+    ctx.save();
+    ctx.beginPath();
+    var first = true, minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (var i = 0; i < path.length; i++) {
+      var seg = path[i], A = pts[seg.from], B = pts[seg.to];
+      if (!A || !B) continue;
+      var ac = this._w2c(A.x, A.y), bc = this._w2c(B.x, B.y);
+      if (first) { ctx.moveTo(ac.x, ac.y); first = false; }
+      this._traceSeg(ctx, seg, ac, bc);
+      
+      // Expand bounding box roughly
+      minX = Math.min(minX, ac.x, bc.x); maxX = Math.max(maxX, ac.x, bc.x);
+      minY = Math.min(minY, ac.y, bc.y); maxY = Math.max(maxY, ac.y, bc.y);
+      if (seg.ctrl.length > 0) {
+        var _localSelf = this;
+        seg.ctrl.forEach(function(c) {
+          var cp = _localSelf._cp(ac, bc, c);
+          minX = Math.min(minX, cp.x); maxX = Math.max(maxX, cp.x);
+          minY = Math.min(minY, cp.y); maxY = Math.max(maxY, cp.y);
+        });
+      }
+      minX = Math.min(minX, ac.x, bc.x); maxX = Math.max(maxX, ac.x, bc.x);
+      minY = Math.min(minY, ac.y, bc.y); maxY = Math.max(maxY, ac.y, bc.y);
+    }
+    ctx.closePath();
+    ctx.clip();
+    this._drawPattern(style, spacing, dens, offsetX, offsetY, minX, minY, maxX, maxY, angle);
+    ctx.restore();
   }
-  ctx.closePath();
-  ctx.clip();
 
-  // Draw fill directly
-  ctx.strokeStyle = 'rgba(26,8,0,.28)';
-  ctx.lineWidth = 1.2;
-  ctx.fillStyle = 'rgba(26,8,0,.45)';
-  // Determine pattern spacing in screen pixels (independent of world unit scale)
+  for (var i = 0; i < group.circles.length; i++) {
+    var c = group.circles[i], ctr = pts[c.center];
+    if (!ctr) continue;
+    var cc = this._w2c(ctr.x, ctr.y), rpx = c.r * this.scale;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cc.x, cc.y, rpx, 0, Math.PI * 2);
+    ctx.clip();
+    this._drawPattern(style, spacing, dens, offsetX, offsetY, cc.x - rpx, cc.y - rpx, cc.x + rpx, cc.y + rpx, angle);
+    ctx.restore();
+  }
+};
+
+ZuhyoRenderer.prototype._drawPattern = function(style, spacing, dens, offsetX, offsetY, minX, minY, maxX, maxY, angle) {
+  var ctx = this.ctx;
   var pitchPx = Math.max(6, Math.round(12 * spacing / Math.max(0.01, dens)));
 
   if (style === 'dot') {
-    var dotPitchPx = Math.max(6, Math.round(12 * spacing / Math.max(0.01, dens)));
-    // Fill via screen-space grid: iterate in pixel coordinates then draw translated into canvas
-    for (var sx = Math.floor(minX - dotPitchPx); sx <= Math.ceil(maxX + dotPitchPx); sx += dotPitchPx) {
-      for (var sy = Math.floor(minY - dotPitchPx); sy <= Math.ceil(maxY + dotPitchPx); sy += dotPitchPx) {
+    for (var sx = Math.floor(minX - pitchPx); sx <= Math.ceil(maxX + pitchPx); sx += pitchPx) {
+      for (var sy = Math.floor(minY - pitchPx); sy <= Math.ceil(maxY + pitchPx); sy += pitchPx) {
         ctx.beginPath();
-        ctx.arc(sx + offsetX * this.scale, sy + offsetY * this.scale, Math.max(0.8, dotPitchPx * 0.08), 0, Math.PI * 2);
+        ctx.arc(sx + offsetX * this.scale, sy + offsetY * this.scale, Math.max(0.8, pitchPx * 0.08), 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(26,8,0,.45)';
         ctx.fill();
       }
     }
@@ -494,6 +710,19 @@ ZuhyoRenderer.prototype._renderFill = function(group, pts) {
     }
   }
 
+  ctx.restore();
+};
+
+ZuhyoRenderer.prototype._drawLabel = function(cmd, pts) {
+  var p = pts[cmd.p1];
+  if (!p) return;
+  var cc = this._w2c(p.x, p.y);
+  var fontSize = (cmd.size || 0.4) * this.scale;
+  var ctx = this.ctx;
+  ctx.save();
+  ctx.font = fontSize + 'px "Space Mono", "Meiryo", "Hiragino Kaku Gothic ProN", sans-serif';
+  ctx.fillStyle = '#1c0d00';
+  ctx.fillText(cmd.content, cc.x, cc.y);
   ctx.restore();
 };
 

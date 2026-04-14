@@ -660,18 +660,15 @@ body {
    SYNTAX HIGHLIGHTING
    ================================================================ */
 .hl-comment  { color: var(--sepia); font-style: italic; }
-.hl-kw       { color: var(--ink); font-weight: 700; }
+.hl-kw       { color: var(--ink); }
 .hl-num      { color: var(--ink-2); }
-.hl-pt       { color: var(--ink); font-weight: 700; }
+.hl-pt       { color: var(--ink); }
 .hl-op       { color: var(--ink); }
-.hl-conn     { color: var(--ink); font-weight: 700;
-               background: rgba(0,0,0,.04);
-               border-radius: 2px; padding: 0 2px; }
+.hl-conn     { color: var(--ink); background: rgba(0,0,0,.04); }
 .hl-ctrl     { color: var(--ink-muted); }
-.hl-fill     { color: var(--ink); font-weight: 700; font-style: italic; }
+.hl-fill     { color: var(--ink); font-style: italic; }
 .hl-var      { color: var(--ink-muted); font-style: italic;
-               background: rgba(0,0,0,.02);
-               border-radius: 2px; padding: 0 1px; }
+               background: rgba(0,0,0,.02); }
 
 /* ================================================================
    SCROLLBARS

@@ -18,41 +18,39 @@ var EXAMPLES = {
     '+90c1 = d',
     '',
     'a <-> b <-> c <-> d <-> a',
-    'fill: cross'
+    'fill: cross(45, 1, 0.5)'
   ].join('\n'),
 
   circle: [
-    'ID = circle([radius])',
+    'ID = circle',
     '',
-    '// 左右に定義',
-    '0o[radius] = a',
-    '180o[radius] = b',
-    '',
-    '// 上下の半円で合成',
-    'a <->(50%, 90,[radius]) b <->(50%, 270,[radius]) a',
-    'fill: dot'
-  ].join('\n'),
-
-  cylinder: [
-    'ID = cylinder',
-    '',
+    '// 半円を2つ組み合わせて正円を作成',
     '0o1 = a',
     '180o1 = b',
     '',
-    '// 上面楕円',
-    'a <->(50%, 90,0.5) b',
-    'b <->(50%, 270,0.5) a',
+    'a <->(50%, 90, 1) b',
+    'b <->(50%, 270, 1) a',
+    'fill: dot(0, 0, 0.5)'
+  ].join('\n'),
+
+  cylinder: [
+    'ID = cylinder([radius], [height])',
+    '',
+    '// 上面を定義 (円弧で描画)',
+    '0o[radius] = a',
+    '180o[radius] = b',
+    'a <->(50%, 90, [radius]) b',
+    'b <->(50%, 270, [radius]) a',
     'fill: none',
     '',
-    '// 下面',
-    '270a3 = c',
-    '270b3 = d',
+    '// 下面を定義',
+    '270a[height] = c',
+    '270b[height] = d',
+    'c <->(50%, 90, math([radius]*2)) d',
+    'd <->(50%, 270, math([radius]*2)) c',
+    'fill: hatch(45, 1, 0.5)',
     '',
-    'c <->(50%, 90,0.5) d',
-    'd <..>(50%, 270,0.5) c',
-    'fill: line',
-    '',
-    '// 縦線',
+    '// 側面を結ぶ',
     'a <-> c',
     'b <-> d'
   ].join('\n'),
@@ -66,7 +64,45 @@ var EXAMPLES = {
     '90o1 = c',
     '',
     'a <-> b <-> c <-> a',
-    'fill: dot'
+    'fill: dot(0, 0, 0.3)'
+  ].join('\n'),
+
+  graph: [
+    'ID = sine_wave',
+    '',
+    '// グラフ描画',
+    'plot: sin(x) [-5, 5, 0.1]',
+    '',
+    '// 軸の端にラベル',
+    '0o5 = endX',
+    '180o5 = startX',
+    'text: "x-axis" startX endX'
+  ].join('\n'),
+
+  text_rect_fit: [
+    'ID = text_box([width], [height], [content])',
+    '',
+    '// 4点を定義して矩形を作成',
+    '0o0 = a',
+    '0a[width] = b',
+    '270b[height] = c',
+    '180c[width] = d',
+    '',
+    '// 枠線',
+    'a <-> b <-> c <-> d <-> a',
+    '',
+    '// 矩形フィット',
+    'text: "[content]" a c'
+  ].join('\n'),
+
+  text_label: [
+    'ID = text_label([size], [content])',
+    '',
+    '// 地点を定義',
+    '0o0 = a',
+    '',
+    '// 地点ラベル',
+    'label: "[content]" a [size]'
   ].join('\n')
 };
 
@@ -93,9 +129,83 @@ var proj = function() { return APP.project; };
 function getStruct(id)   { return proj().structures.filter(function(s) { return s.id === id; })[0] || null; }
 function getInstance(id) { return proj().instances.filter(function(i)  { return i.id === id; })[0] || null; }
 
+/* ================================================================
+   UNDO / REDO
+   ================================================================ */
+var UNDO_STACK = [];
+var REDO_STACK = [];
+var MAX_UNDO   = 50;
+
+function pushUndo() {
+  var snap = JSON.stringify({
+    project: APP.project,
+    ui: {
+      currentStructId: APP.ui.currentStructId,
+      selectedInstId: APP.ui.selectedInstId
+    },
+    idCtr: _idCtr
+  });
+  
+  if (UNDO_STACK.length > 0 && UNDO_STACK[UNDO_STACK.length - 1] === snap) return;
+  UNDO_STACK.push(snap);
+  if (UNDO_STACK.length > MAX_UNDO) UNDO_STACK.shift();
+  REDO_STACK = []; // Clear redo on new action
+}
+
+function undo() {
+  if (UNDO_STACK.length < 1) return;
+  var current = JSON.stringify({
+    project: APP.project,
+    ui: {
+      currentStructId: APP.ui.currentStructId,
+      selectedInstId: APP.ui.selectedInstId
+    },
+    idCtr: _idCtr
+  });
+  REDO_STACK.push(current);
+  var snap = JSON.parse(UNDO_STACK.pop());
+  _applySnap(snap);
+}
+
+function redo() {
+  if (REDO_STACK.length < 1) return;
+  var current = JSON.stringify({
+    project: APP.project,
+    ui: {
+      currentStructId: APP.ui.currentStructId,
+      selectedInstId: APP.ui.selectedInstId
+    },
+    idCtr: _idCtr
+  });
+  UNDO_STACK.push(current);
+  var snap = JSON.parse(REDO_STACK.pop());
+  _applySnap(snap);
+}
+
+function _applySnap(snap) {
+  APP.project = snap.project;
+  APP.ui.currentStructId = snap.ui.currentStructId;
+  APP.ui.selectedInstId = snap.ui.selectedInstId;
+  renderer.selInstId = snap.ui.selectedInstId;
+  _idCtr = snap.idCtr;
+  
+  renderAll();
+  renderer.updateProject(proj());
+  
+  // Sync editor if visible
+  if (APP.ui.currentStructId) {
+    var s = getStruct(APP.ui.currentStructId);
+    if (s && edEl.value !== s.code) {
+      edEl.value = s.code;
+      updateHL(); updateLN(); updateHints();
+    }
+  }
+}
+
 /* ── Project mutations ── */
 
 function addStructure(name, code) {
+  pushUndo();
   var id = nextId('s');
   name   = name || '新しい構造';
   code   = code || ('ID = ' + name + '\n\n// ここに点を定義してください\n// 例: 90o1 = a\n');
@@ -109,6 +219,7 @@ function addStructure(name, code) {
 }
 
 function deleteStructure(id) {
+  pushUndo();
   proj().structures = proj().structures.filter(function(s) { return s.id !== id; });
   proj().instances  = proj().instances.filter(function(i)  { return i.structId !== id; });
   if (APP.ui.currentStructId === id) {
@@ -124,6 +235,7 @@ function deleteStructure(id) {
 }
 
 function callStructure(structId) {
+  pushUndo();
   var s = getStruct(structId);
   if (!s) return;
   var header = extractHeader(s.code);
@@ -139,6 +251,7 @@ function callStructure(structId) {
 }
 
 function deleteInstance(id) {
+  pushUndo();
   proj().instances = proj().instances.filter(function(i) { return i.id !== id; });
   if (APP.ui.selectedInstId === id) {
     APP.ui.selectedInstId = null;
@@ -150,6 +263,9 @@ function deleteInstance(id) {
 }
 
 function updateInstance(id, changes) {
+  // Pushing undo on every slider/input move might be too much,
+  // but let's do it for discreet property changes.
+  // Real-time dragging is handled separately.
   var inst = getInstance(id);
   if (!inst) return;
   Object.keys(changes).forEach(function(k) { inst[k] = changes[k]; });
@@ -181,7 +297,7 @@ edEl.addEventListener('scroll', function() {
   lnEl.scrollTop  = edEl.scrollTop;
 });
 
-edEl.addEventListener('keydown', function(ea) {
+edEl.addEventListener('keydown', function(e) {
   if (e.ctrlKey && (e.key === 'h' || e.key === 'H')) {
     e.preventDefault();
     HINTS_VISIBLE = !HINTS_VISIBLE;
@@ -308,13 +424,14 @@ function updateHints() {
         }
         
         hints.push('━ Line Connectors:');
-        hints.push('  -  (solid) | .. (dotted) | -- (dashed) | -.- (dash-dot) | -..- (dash-dot-dot)');
-        hints.push('📌 Control Points: <...>(pct%, angle, distance) — offset midpoint');
+        hints.push('  -  (solid) | .. (dotted) | -- (dashed)');
+        hints.push('📌 Arcs/Curves: <->(pct%, angle, dist) - Circular arc (1 ctrl)');
+        hints.push('📌 Bezier: <->(c1)(c2) - Cubic Bezier (2+ ctrl)');
         
         if (inConnector) {
-          hints.push('💡 Example: a <->(50%, 90, 0.5) b');
+          hints.push('💡 Example: a <->(50%, 90, 1) b (Arc)');
         } else {
-          hints.push('💡 Example: a <-> b  or  a <..>(ctrl) b');
+          hints.push('💡 Example: a <-> b  or  a <->(ctrl) b');
         }
         break;
       }
@@ -391,9 +508,22 @@ function updateHints() {
   }
 }
 
-// Delete key removes selected instance
+  // Global Hotkeys
 document.addEventListener('keydown', function(e) {
-  if ((e.key === 'Delete' || e.key === 'Backspace')
+  // Undo/Redo
+  if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
+    return;
+  }
+  if (e.ctrlKey && (e.key === 'y' || e.key === 'Y')) {
+    e.preventDefault();
+    redo();
+    return;
+  }
+
+  // Delete key removes selected instance
+  if (e.key === 'Delete'
       && APP.ui.selectedInstId
       && document.activeElement !== edEl) {
     e.preventDefault();
@@ -424,7 +554,16 @@ function syncEditorToState() {
   var s = getStruct(id);
   if (!s) return;
 
-  s.code = edEl.value;
+  // Snapshot before change for undo
+  if (edEl.value !== s.code) {
+    // We only push undo if this is the first change in a while
+    // or if the parser result transitions from error to OK or vice versa
+    // But for simplicity, let's just push it once per "edit session"
+    // Actually, edEl already debounces 80ms. Let's push before updating.
+    pushUndo();
+    s.code = edEl.value;
+  }
+
   var h  = extractHeader(s.code);
   if (h.name !== s.name) {
     s.name = h.name;
@@ -448,6 +587,7 @@ function syncEditorToState() {
   }
 
   renderer.updateProject(proj());
+  renderInspector();
   updateHints();
   markDirty();
 }
@@ -505,10 +645,7 @@ function renderStructList() {
   list.querySelectorAll('.s-del').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
       e.stopPropagation();
-      var s = getStruct(btn.dataset.id);
-      if (s && confirm('「' + s.name + '」を削除しますか？\n（このインスタンスもすべて削除されます）')) {
-        deleteStructure(btn.dataset.id);
-      }
+      deleteStructure(btn.dataset.id);
     });
   });
 }
@@ -558,7 +695,7 @@ function renderInspector() {
       return (
         '<div class="insp-row">' +
           '<label class="insp-label">[' + _escHtml(p) + ']</label>' +
-          '<input class="insp-input" type="number" step="0.1" data-param="' + _escHtml(p) + '" value="' + val + '">' +
+          '<input class="insp-input" type="text" data-param="' + _escHtml(p) + '" value="' + _escHtml(val) + '">' +
         '</div>'
       );
     }).join('');
@@ -604,7 +741,8 @@ function renderInspector() {
   // Args
   body.querySelectorAll('.insp-input[data-param]').forEach(function(inp) {
     inp.addEventListener('input', function() {
-      inst.args[inp.dataset.param] = parseFloat(inp.value) || 0;
+      var val = inp.value;
+      inst.args[inp.dataset.param] = val;
       renderer.updateProject(proj());
       markDirty();
     });
@@ -635,7 +773,7 @@ function renderInspector() {
 
   // Delete
   document.getElementById('insp-del').addEventListener('click', function() {
-    if (confirm('このインスタンスを削除しますか？')) deleteInstance(id);
+    deleteInstance(id);
   });
 }
 
@@ -717,7 +855,7 @@ function loadProject(jsonText) {
 }
 
 function newProject() {
-  if (APP.ui.dirty && !confirm('保存されていない変更があります。新規プロジェクトを作成しますか？')) return;
+  pushUndo();
   APP.project = { name: 'Untitled', structures: [], instances: [] };
   APP.ui.currentStructId = null;
   APP.ui.selectedInstId  = null;
@@ -743,7 +881,7 @@ renderer.onInstanceClick = function(instId) {
 };
 
 renderer.onInstanceDragStart = function(instId) {
-  // Option: stop auto-rendering or highlights?
+  pushUndo();
 };
 
 renderer.onInstanceDrag = function(instId, ddx, ddy) {
@@ -951,7 +1089,7 @@ function _escHtml(s) {
    ================================================================ */
 (function init() {
   // Load examples as initial structures
-  var exKeys = ['square', 'circle', 'cylinder', 'triangle'];
+  var exKeys = ['square', 'circle', 'cylinder', 'triangle', 'graph', 'text_rect_fit', 'text_label'];
   exKeys.forEach(function(key) {
     var code = EXAMPLES[key];
     var hdr  = extractHeader(code);
@@ -974,6 +1112,7 @@ function _escHtml(s) {
 
   resizeCanvas();
   renderer.updateProject(proj());
+  renderInspector(); 
   renderAll();
   clearDirty();
 })();
