@@ -31,7 +31,117 @@
   --radius:      2px;
   --font-mono:   'Space Mono', 'Courier New', monospace;
   --font-serif:  'Noto Serif JP', serif;
+  /* Canvas colours (read by renderer.js draw()) */
+  --cv-bg:       #fdf9f0;
+  --cv-ink:      #1a0800;
+  --cv-grid:     rgba(100,60,10,.07);
+  --cv-axis:     rgba(100,60,10,.22);
+  --cv-pt:       #1c0d00;
+  --cv-sel:      #3a1800;
+  --cv-label:    #5a3010;
 }
+
+/* ── Theme: Blueprint ── */
+[data-theme="blueprint"] {
+  --bg:          #0a1628;
+  --panel-bg:    #0d1e38;
+  --panel-bg-2:  #0f2040;
+  --panel-hd:    #0c1a30;
+  --canvas-bg:   #0d1e38;
+  --ink:         #c8e0ff;
+  --ink-2:       #a8c8f0;
+  --ink-muted:   #7aa8d8;
+  --ink-faint:   #4a7aaa;
+  --border:      #1e3a5a;
+  --border-2:    #2a4e72;
+  --accent:      #4a9eff;
+  --accent-2:    #2a7ed8;
+  --accent-soft: rgba(74,158,255,.08);
+  --hdr-bg:      #060e1c;
+  --hdr-text:    #c8e0ff;
+  --sepia:       #4a9eff;
+  --sepia-light: #7abeff;
+  --sepia-pale:  #1e3a5a;
+  --cv-bg:       #0d1e38;
+  --cv-ink:      #88c0ff;
+  --cv-grid:     rgba(74,158,255,.10);
+  --cv-axis:     rgba(74,158,255,.35);
+  --cv-pt:       #c8e0ff;
+  --cv-sel:      #ffdd44;
+  --cv-label:    #88c0ff;
+}
+
+/* ── Theme: Dark ── */
+[data-theme="dark"] {
+  --bg:          #141414;
+  --panel-bg:    #1c1c1c;
+  --panel-bg-2:  #202020;
+  --panel-hd:    #181818;
+  --canvas-bg:   #181818;
+  --ink:         #e8e8e8;
+  --ink-2:       #cccccc;
+  --ink-muted:   #909090;
+  --ink-faint:   #606060;
+  --border:      #2e2e2e;
+  --border-2:    #404040;
+  --accent:      #e8e8e8;
+  --accent-2:    #cccccc;
+  --accent-soft: rgba(255,255,255,.04);
+  --hdr-bg:      #0a0a0a;
+  --hdr-text:    #e8e8e8;
+  --sepia:       #888888;
+  --sepia-light: #aaaaaa;
+  --sepia-pale:  #333333;
+  --cv-bg:       #181818;
+  --cv-ink:      #d0d0d0;
+  --cv-grid:     rgba(255,255,255,.05);
+  --cv-axis:     rgba(255,255,255,.18);
+  --cv-pt:       #e0e0e0;
+  --cv-sel:      #ffdd44;
+  --cv-label:    #aaaaaa;
+}
+
+/* ── Theme: Paper (clean white) ── */
+[data-theme="paper"] {
+  --bg:          #ffffff;
+  --panel-bg:    #f8f8f8;
+  --panel-bg-2:  #f2f2f2;
+  --panel-hd:    #eeeeee;
+  --canvas-bg:   #ffffff;
+  --ink:         #111111;
+  --ink-2:       #222222;
+  --ink-muted:   #555555;
+  --ink-faint:   #999999;
+  --border:      #dddddd;
+  --border-2:    #cccccc;
+  --accent:      #111111;
+  --accent-2:    #333333;
+  --accent-soft: rgba(0,0,0,.03);
+  --hdr-bg:      #222222;
+  --hdr-text:    #ffffff;
+  --sepia:       #444444;
+  --sepia-light: #888888;
+  --sepia-pale:  #dddddd;
+  --cv-bg:       #ffffff;
+  --cv-ink:      #111111;
+  --cv-grid:     rgba(0,0,0,.06);
+  --cv-axis:     rgba(0,0,0,.25);
+  --cv-pt:       #111111;
+  --cv-sel:      #0055cc;
+  --cv-label:    #333333;
+}
+
+/* ── Theme: Sepia (default, explicit) ── */
+[data-theme="sepia"], :root {
+  --cv-bg:     #fdf9f0;
+  --cv-ink:    #1a0800;
+  --cv-grid:   rgba(100,60,10,.07);
+  --cv-axis:   rgba(100,60,10,.22);
+  --cv-pt:     #1c0d00;
+  --cv-sel:    #3a1800;
+  --cv-label:  #5a3010;
+}
+
 
 /* ── Reset ── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -682,3 +792,132 @@ body {
    MISC
    ================================================================ */
 ::placeholder { color: var(--ink-faint); opacity: .6; }
+
+/* ================================================================
+   INSPECTOR — ARGUMENT SLIDER DUAL UI
+   ================================================================ */
+.insp-row-arg {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.insp-arg-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Range スライダー */
+.insp-slider {
+  width: 100%;
+  height: 4px;
+  accent-color: var(--sepia);
+  cursor: pointer;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--sepia) var(--pct, 50%), var(--sepia-pale) var(--pct, 50%));
+}
+.insp-slider:hover { accent-color: var(--ink); }
+
+/* テキストボックス (数値入力) */
+.insp-numbox {
+  width: 100%;
+  text-align: right;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  background: var(--panel-bg);
+  border: 1px solid var(--sepia-pale);
+  border-radius: var(--radius);
+  color: var(--ink);
+  outline: none;
+  transition: border-color .15s;
+}
+.insp-numbox:focus { border-color: var(--sepia-light); box-shadow: 0 0 0 2px rgba(139,115,85,.12); }
+
+/* ================================================================
+   ANIMATION CONTROLS
+   ================================================================ */
+.anim-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-anim {
+  font-size: 11px;
+  padding: 3px 8px;
+  min-width: 28px;
+}
+
+.anim-slider {
+  width: 120px;
+  accent-color: var(--sepia);
+  cursor: pointer;
+  height: 4px;
+  border-radius: 2px;
+}
+.anim-slider:hover { accent-color: var(--accent); }
+
+.anim-tlabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-muted);
+  min-width: 52px;
+  text-align: right;
+  letter-spacing: .5px;
+}
+
+.anim-speed {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: var(--panel-bg);
+  border: 1px solid var(--sepia-pale);
+  border-radius: var(--radius);
+  color: var(--ink-muted);
+  padding: 2px 4px;
+  cursor: pointer;
+  outline: none;
+}
+.anim-speed:focus { border-color: var(--sepia-light); }
+
+/* ================================================================
+   THEME PICKER
+   ================================================================ */
+.theme-picker {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin: 0 2px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--sepia-pale);
+  border-radius: 3px;
+  padding: 2px 4px;
+}
+
+.theme-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--hdr-text);
+  cursor: pointer;
+  font-size: 12px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: .55;
+  transition: opacity .15s, border-color .15s, background .15s;
+  padding: 0;
+}
+.theme-btn:hover  { opacity: 1; background: rgba(255,255,255,.1); }
+.theme-btn.active { opacity: 1; border-color: var(--sepia-light); background: rgba(255,255,255,.18); }
+
+/* ================================================================
+   RENDERER canvas — テーマ対応背景
+   ================================================================ */
+#cv { background: var(--cv-bg, #fdf9f0); }
+

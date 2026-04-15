@@ -1,137 +1,195 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>図描 — Zuhyo</title>
-  <meta name="description" content="図描 (Zuhyo) — 幾何学描画言語エディター。点・線・曲線・fillをリアルタイムに描画します。">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Noto+Serif+JP:wght@300;400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/zuhyo.css">
-  <link rel="icon" href="data:,">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>図描 — Zuhyo</title>
+    <meta name="description" content="図描 (Zuhyo) — 幾何学描画言語エディター。点・線・曲線・fillをリアルタイムに描画します。">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Noto+Serif+JP:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/zuhyo.css">
+    <link rel="stylesheet" href="css/drafting.css">
+    <link rel="icon" href="data:,">
 </head>
 <body>
 
 <!-- ── Header ── -->
 <header id="app-header">
-  <div class="h-brand">
-    <div class="h-mark">図</div>
-    <div class="h-brand-text">
-      <div class="h-title">図描</div>
-      <div class="h-sub">ZUHYO DIAGRAM EDITOR</div>
+    <div class="h-brand">
+        <div class="h-mark">図</div>
+        <div class="h-brand-text">
+            <div class="h-title">図描</div>
+            <div class="h-sub">ZUHYO DIAGRAM EDITOR</div>
+        </div>
     </div>
-  </div>
 
-  <div class="h-center">
-    <input type="text" id="project-name" class="project-name-input" value="Untitled" spellcheck="false">
-    <span class="dirty-mark" id="dirty-mark" style="display:none">*</span>
-  </div>
-
-  <div class="h-actions">
-    <button class="hbtn" id="btn-new-project" title="新規プロジェクト">新規</button>
-    <button class="hbtn" id="btn-save" title="プロジェクトを保存 (.zy)">保存</button>
-    <button class="hbtn" id="btn-load" title="プロジェクトを開く">開く</button>
-    <div class="export-wrap" id="export-wrap">
-      <button class="hbtn hbtn-accent" id="btn-export">書き出し ▾</button>
-      <div class="export-menu" id="export-menu">
-        <button id="exp-png-t">PNG（透明背景）</button>
-        <button id="exp-png-w">PNG（白背景）</button>
-        <button id="exp-svg">SVG</button>
-        <div class="exp-divider"></div>
-        <button id="exp-zy">図描プロジェクト (.zy)</button>
-      </div>
+    <div class="h-center">
+        <input type="text" id="project-name" class="project-name-input" value="Untitled" spellcheck="false" aria-label="プロジェクト名">
+        <span class="dirty-mark" id="dirty-mark" style="display:none" aria-hidden="true">*</span>
     </div>
-  </div>
 
-  <div class="h-status">
-    <span class="sdot" id="sdot"></span>
-    <span id="stxt">READY</span>
-  </div>
+    <div class="h-actions">
+        <button class="hbtn" id="btn-new-project" title="新規プロジェクト">新規</button>
+        <button class="hbtn" id="btn-save" title="プロジェクトを保存 (.zy)">保存</button>
+        <button class="hbtn" id="btn-load" title="プロジェクトを開く">開く</button>
+        <button class="hbtn" id="btn-manual" style="background: rgba(141,202,96,0.15); border-color: #8dca60; color: #8dca60; margin: 0 4px;">📖 マニュアル</button>
+
+        <!-- Theme Picker -->
+        <div class="theme-picker" title="テーマ切り替え" role="radiogroup" aria-label="テーマ切り替え">
+            <button class="theme-btn active" id="theme-sepia"        data-theme="sepia"         title="セピア（デフォルト）" aria-label="セピア（デフォルト）" role="radio" aria-checked="true">□</button>
+            <button class="theme-btn"                id="theme-blueprint" data-theme="blueprint" title="ブループリント" aria-label="ブループリント" role="radio" aria-checked="false">◈</button>
+            <button class="theme-btn"                id="theme-dark"            data-theme="dark"            title="ダーク" aria-label="ダーク" role="radio" aria-checked="false">◉</button>
+            <button class="theme-btn"                id="theme-paper"         data-theme="paper"         title="ペーパー（白）" aria-label="ペーパー（白）" role="radio" aria-checked="false">○</button>
+        </div>
+
+        <div class="export-wrap" id="plugin-wrap">
+            <button class="hbtn" id="btn-plugin" style="color:#d48a3c">プラグイン ▾</button>
+            <div class="export-menu" id="plugin-menu" style="width: 250px;">
+                <!-- Dynamically populated in app.js -->
+            </div>
+        </div>
+
+        <div class="export-wrap" id="export-wrap">
+            <button class="hbtn hbtn-accent" id="btn-export">書き出し ▾</button>
+            <div class="export-menu" id="export-menu">
+                <button id="exp-png-t">PNG（透明背景）</button>
+                <button id="exp-png-w">PNG（白背景）</button>
+                <button id="exp-svg">SVG</button>
+                <div class="exp-divider"></div>
+                <button id="exp-zy">図描プロジェクト (.zy)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="h-status">
+        <span class="sdot" id="sdot"></span>
+        <span id="stxt">READY</span>
+    </div>
 </header>
 
 <!-- ── App body ── -->
 <div class="app-body">
 
-  <!-- LEFT PANEL -->
-  <div class="left-panel" id="left-panel">
+    <!-- LEFT PANEL -->
+    <div class="left-panel" id="left-panel">
 
-    <!-- Structure list -->
-    <div class="struct-panel" id="struct-panel">
-      <div class="panel-hd">
-        <span class="panel-title">構造</span>
-        <button class="btn btn-sm" id="btn-add-struct">＋ 新規</button>
-      </div>
-      <div class="struct-list" id="struct-list">
-        <div class="empty-msg">構造がありません</div>
-      </div>
-    </div>
-
-    <!-- Vertical resize handle -->
-    <div class="v-divider" id="v-divider"></div>
-
-    <!-- Code editor -->
-    <div class="editor-section">
-      <div class="panel-hd">
-        <span class="panel-title" id="editor-panel-title">エディター</span>
-      </div>
-      <div class="editor-body">
-        <div class="line-nums" id="line-nums"></div>
-        <div class="code-wrap">
-          <pre class="hl-layer" id="hl-layer" aria-hidden="true"></pre>
-          <textarea class="code-input" id="code-ed"
-            spellcheck="false" autocomplete="off" autocorrect="off"
-            placeholder="// 構造を選択するかコードを入力してください"></textarea>
+        <!-- Structure list -->
+        <div class="struct-panel" id="struct-panel">
+            <div class="panel-hd">
+                <span class="panel-title">構造</span>
+                <button class="btn btn-sm" id="btn-add-struct">＋ 新規</button>
+            </div>
+            <div class="struct-list" id="struct-list">
+                <div class="empty-msg">構造がありません</div>
+            </div>
         </div>
-      </div>
-      <div class="error-bar">
-        <span class="err-icon" id="err-icon">●</span>
-        <span id="err-txt">エラーなし</span>
-      </div>
+
+        <!-- Vertical resize handle -->
+        <div class="v-divider" id="v-divider"></div>
+
+        <!-- Code editor -->
+        <div class="editor-section">
+            <div class="panel-hd">
+                <span class="panel-title" id="editor-panel-title">エディター</span>
+            </div>
+            <div class="editor-body">
+                <div class="line-nums" id="line-nums"></div>
+                <div class="code-wrap">
+                    <pre class="hl-layer" id="hl-layer" aria-hidden="true"></pre>
+                    <textarea class="code-input" id="code-ed"
+                        spellcheck="false" autocomplete="off" autocorrect="off"
+                        placeholder="// 構造を選択するかコードを入力してください" aria-label="コードエディター"></textarea>
+                </div>
+            </div>
+            <div class="error-bar">
+                <span class="err-icon" id="err-icon">●</span>
+                <span id="err-txt">エラーなし</span>
+            </div>
+        </div>
+
+    </div><!-- /left-panel -->
+
+    <!-- Horizontal resize handle -->
+    <div class="h-divider" id="h-divider"></div>
+
+    <div class="canvas-area" id="canvas-area">
+        <div class="canvas-toolbar">
+            <button class="btn btn-sm btn-tool active" id="btn-tool-camera" title="カメラモード（パン＆ズーム）" aria-pressed="true">☉ カメラ</button>
+            <button class="btn btn-sm btn-tool" id="btn-tool-grab" title="グラブモード（選択＆移動）" aria-pressed="false">✋ グラブ</button>
+            <span class="tb-pipe">│</span>
+            <button class="btn btn-sm" id="btn-reset-view">⟳ リセット</button>
+            <label class="toggle">
+                <input type="checkbox" id="grid-snap"> グリッド
+            </label>
+            <label class="toggle">
+                <input type="checkbox" id="show-labels" checked> ラベル
+            </label>
+            <span class="tb-pipe">│</span>
+            <!-- ── アニメーション コントロール ── -->
+            <div class="anim-controls" id="anim-controls">
+                <button class="btn btn-sm btn-anim" id="btn-anim-play"    title="再生 / 停止">▶</button>
+                <button class="btn btn-sm btn-anim" id="btn-anim-reset" title="リセット">◼</button>
+                <input    class="anim-slider" id="anim-slider" type="range" min="0" max="100" step="0.1" value="0" title="タイムライン [t]" aria-label="タイムライン">
+                <span     class="anim-tlabel" id="anim-tlabel" aria-live="polite">t=0.00</span>
+                <select class="anim-speed"    id="anim-speed" title="速度" aria-label="アニメーション速度">
+                    <option value="0.25">×¼</option>
+                    <option value="0.5" >×½</option>
+                    <option value="1"     selected>×1</option>
+                    <option value="2"     >×2</option>
+                    <option value="4"     >×4</option>
+                </select>
+            </div>
+            <span class="tb-sep"></span>
+            <span class="coord-display" id="mouse-coord">x: 0.00    y: 0.00</span>
+            <span class="zoom-display" id="zoom-val">100%</span>
+        </div>
+        <canvas id="cv" aria-label="描画キャンバス" role="img"></canvas>
     </div>
 
-  </div><!-- /left-panel -->
-
-  <!-- Horizontal resize handle -->
-  <div class="h-divider" id="h-divider"></div>
-
-  <!-- CANVAS AREA -->
-  <div class="canvas-area" id="canvas-area">
-    <div class="canvas-toolbar">
-      <button class="btn btn-sm btn-tool active" id="btn-tool-camera" title="カメラモード（パン＆ズーム）">☉ カメラ</button>
-      <button class="btn btn-sm btn-tool" id="btn-tool-grab" title="グラブモード（選択＆移動）">✋ グラブ</button>
-      <span class="tb-pipe">│</span>
-      <button class="btn btn-sm" id="btn-reset-view">⟳ リセット</button>
-      <label class="toggle">
-        <input type="checkbox" id="grid-snap"> グリッド
-      </label>
-      <label class="toggle">
-        <input type="checkbox" id="show-labels" checked> ラベル
-      </label>
-      <span class="tb-sep"></span>
-      <span class="coord-display" id="mouse-coord">x: 0.00  y: 0.00</span>
-      <span class="zoom-display" id="zoom-val">100%</span>
+    <!-- INSPECTOR (slides in from right) -->
+    <div class="inspector" id="inspector">
+        <div class="inspector-inner">
+            <div class="insp-hd">
+                <span class="insp-title" id="insp-title">インスペクター</span>
+                <button class="btn-icon" id="insp-close" title="閉じる" aria-label="閉じる">✕</button>
+            </div>
+            <div class="insp-body" id="insp-body"></div>
+        </div>
     </div>
-    <canvas id="cv"></canvas>
-  </div>
-
-  <!-- INSPECTOR (slides in from right) -->
-  <div class="inspector" id="inspector">
-    <div class="inspector-inner">
-      <div class="insp-hd">
-        <span class="insp-title" id="insp-title">インスペクター</span>
-        <button class="btn-icon" id="insp-close" title="閉じる">✕</button>
-      </div>
-      <div class="insp-body" id="insp-body"></div>
-    </div>
-  </div>
 
 </div><!-- /app-body -->
 
+<!-- Doc Modal -->
+<div id="doc-modal" class="modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fdf9f0;border-radius:6px;width:500px;max-width:90%;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,0.3);position:relative;">
+        <button id="doc-close" style="position:absolute;top:10px;right:10px;background:none;border:none;font-size:20px;cursor:pointer;color:#555;">✕</button>
+        <h3 id="doc-title" style="margin-top:0;color:#1a0800;">ドキュメント</h3>
+        <pre id="doc-content" style="white-space:pre-wrap;font-family:monospace;font-size:13px;line-height:1.5;color:#333;background:#fafafa;padding:12px;border:1px solid #ddd;border-radius:4px;max-height:60vh;overflow-y:auto;"></pre>
+    </div>
+</div>
+
 <!-- Hidden file input -->
 <input type="file" id="file-input" accept=".zy,application/json" style="display:none">
+<script src="js/addon.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
+
+<!-- ── Built-in Addons ── -->
+<script src="addons/math_functions.js"></script>
+<script src="addons/trig_functions.js"></script>
+<script src="addons/polar_curves.js"></script>
+<script src="addons/parametric_curves.js"></script>
+<script src="addons/conic_sections.js"></script>
+<script src="addons/statistics.js"></script>
+<script src="addons/number_theory.js"></script>
+<script src="addons/vector_field.js"></script>
+<script src="addons/geometry_tools.js"></script>
+<script src="addons/calculus.js"></script>
+
+<!-- Peggy Parser Generator -->
+<script src="https://unpkg.com/peggy"></script>
 <script src="js/parser.js"></script>
+
+
 <script src="js/highlighter.js"></script>
 <script src="js/renderer.js"></script>
 <script src="js/app.js"></script>
